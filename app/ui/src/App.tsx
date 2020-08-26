@@ -11,7 +11,7 @@ function App() {
     <div className="App">
       <Layout style={{ minHeight: '100vh' }}>
         <Sider collapsible collapsed={collapsed as boolean} onCollapse={() => setCollapsed(!collapsed)} >
-          <Header className="site-layout-background" style={{ padding: '10px' }}><h1 style={{color:'rgba(255,255,255,255)'}}>IoT Center</h1></Header>
+          <Header className="site-layout-background" style={{ padding: '10px' }}><h1 style={{color:'rgba(255,255,255,255)'}}>IoT&nbsp;Center</h1></Header>
           <Menu theme="dark" defaultSelectedKeys={["1"]} mode="inline">
             <Menu.Item key="1">
               UC 1
