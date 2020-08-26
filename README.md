@@ -5,7 +5,7 @@ It also contains independent clients that write into InfluxDB.
 
 ## Features
 
-ToDo
+ToDo https://gitlab.com/bonitoo-io/influxdata/-/blob/master/iot-center/TechnicalSkeleton.MD
 
 ## Quick Start
 
