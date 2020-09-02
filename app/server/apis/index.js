@@ -8,6 +8,7 @@ router.get('/env/:clientId', (req, res) => {
     influx_url: env.INFLUX_URL,
     influx_org: env.INFLUX_ORG,
     influx_token: env.INFLUX_TOKEN,
+    influx_bucket: env.INFLUX_BUCKET,
     client_id: req.params.clientId,
   }
   res.json(result)
