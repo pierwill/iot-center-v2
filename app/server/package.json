@@ -1,0 +1,21 @@
+{
+  "name": "iot-center-v2-server",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "express": "^4.17.1"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "eslint": "^7.8.1",
+    "eslint-config-node": "^4.1.0",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "nodemon": "^2.0.4",
+    "prettier": "^2.1.1"
+  }
+}

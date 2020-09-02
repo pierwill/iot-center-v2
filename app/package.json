@@ -1,0 +1,18 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": {
+    "packages": [
+      "server",
+      "ui"
+    ]
+  },
+  "scripts": {
+    "build": "cd ui && yarn build",
+    "start": "cd server && yarn start",
+    "dev": "concurrently \"yarn --cwd server dev\" \"yarn --cwd ui start\""
+  },
+  "devDependencies": {
+    "concurrently": "^5.3.0"
+  }
+}
