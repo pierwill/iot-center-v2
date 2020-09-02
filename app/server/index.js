@@ -1,7 +1,7 @@
 const express = require('express')
 const path = require('path')
 const apis = require('./apis')
-const onboardInfluxDB = require('./utils/onboardInfluxDB')
+const onboardInfluxDB = require('./influxdb/onboarding')
 const {logEnvironment} = require('./env')
 
 async function startApplication() {

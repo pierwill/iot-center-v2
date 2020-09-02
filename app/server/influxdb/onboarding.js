@@ -1,5 +1,5 @@
 const {InfluxDB, HttpError} = require('@influxdata/influxdb-client')
-const {SetupAPI, BucketsAPI} = require('@influxdata/influxdb-client-apis')
+const {SetupAPI} = require('@influxdata/influxdb-client-apis')
 const {
   INFLUX_URL,
   INFLUX_TOKEN,
@@ -8,7 +8,7 @@ const {
   onboarding_password,
   INFLUX_BUCKET,
 } = require('../env')
-const getOrganization = require('./getOrganization')
+const {getBucket, createBucket} = require('./buckets')
 
 async function onboardInfluxDB() {
   const url = INFLUX_URL
@@ -27,38 +27,28 @@ async function onboardInfluxDB() {
       })
       console.log(`InfluxDB has been onboarded.`)
     }
-    const {id: orgID} = await getOrganization(INFLUX_ORG)
-    const bucketsAPI = new BucketsAPI(new InfluxDB({url, token: INFLUX_TOKEN}))
-    let createBucket = false
+    let bucketNotFound = false
     try {
-      await bucketsAPI.getBuckets({name: INFLUX_BUCKET, orgID})
-      console.log(`Bucket ${INFLUX_ORG} exists`)
+      await getBucket(INFLUX_BUCKET)
+      console.log(`Bucket '${INFLUX_BUCKET}' exists.`)
     } catch (e) {
-      console.log('!!!!!', e)
       if (e instanceof HttpError && e.statusCode === 401) {
-        console.log(
+        console.error(
           `Unauthorized to determine whether a bucket '${INFLUX_BUCKET}' exists.`
         )
       } else if (e instanceof HttpError && e.statusCode === 404) {
         // bucket not found
-        createBucket = true
+        bucketNotFound = true
       } else {
-        console.log(
+        console.error(
           `Unable to check whether a bucket '${INFLUX_BUCKET}' exists.`,
           e
         )
       }
     }
-    if (createBucket) {
-      await bucketsAPI.postBuckets({
-        body: {
-          name: INFLUX_BUCKET,
-          orgID,
-          description: 'Created by IoT Center',
-          retentionRules: [],
-        },
-      })
-      console.warn(`Bucket ${INFLUX_BUCKET} created.`)
+    if (bucketNotFound) {
+      await createBucket(INFLUX_BUCKET)
+      console.log(`Bucket ${INFLUX_BUCKET} created.`)
     }
   } catch (error) {
     console.error(
