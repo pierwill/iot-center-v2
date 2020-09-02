@@ -1,13 +1,11 @@
 const express = require('express')
 const path = require('path')
+const apis = require('./apis')
 
 const app = express()
 
 // APIs
-app.get('/api/env', (_req, res) => {
-  const result = {}
-  res.json(result)
-})
+app.use('/api', apis)
 
 // UI
 const uiBuildDir = path.join(__dirname, '../ui/build')
@@ -17,6 +15,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(uiBuildDir, 'index.html'))
 })
 
+// start HTTP server
 const port = process.env.PORT || 5000
 app.listen(port)
 console.log(`listening on http://localhost:${port}`)
