@@ -13,16 +13,17 @@ ToDo https://gitlab.com/bonitoo-io/influxdata/-/blob/master/iot-center/Technical
    * node 12 or newer
    * yarn 1.9.4 or newer
 
-### Run IoT Center Application with hot-swap
+### Run IoT Center Application
 
 ```
 cd app
 yarn install
 yarn build
 yarn start
+open http://localhost:5000
 ```
 
-### Develop and Play IoT Center Application with hot-swap
+### Develop and Play with IoT Center Application (hot-swap enabled)
 
 ```
 cd app
