@@ -7,6 +7,12 @@ const {logEnvironment} = require('./env')
 async function startApplication() {
   const app = express()
 
+  // log request URLs
+  app.use((req, _resp, next) => {
+    console.info(`${req.method} ${req.path}`)
+    next()
+  })
+
   // APIs
   app.use('/api', apis)
 

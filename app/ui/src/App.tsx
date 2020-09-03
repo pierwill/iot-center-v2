@@ -10,9 +10,14 @@ import {
 } from "react-router-dom";
 import "./App.css";
 import { Layout, Menu } from "antd";
-import { HomeOutlined, BugOutlined } from "@ant-design/icons";
+import {
+  HomeOutlined,
+  BugOutlined,
+  DoubleRightOutlined,
+} from "@ant-design/icons";
 
 import HomePage from "./pages/HomePage";
+import DevicesPage from "./pages/DevicesPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 const { Header, Sider } = Layout;
@@ -20,7 +25,7 @@ const { Header, Sider } = Layout;
 function App(props: RouteComponentProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = props.location.pathname;
-  console.log(pathname);
+  // console.log(pathname);
   return (
     <div className="App">
       <Layout style={{ minHeight: "100vh" }}>
@@ -41,16 +46,19 @@ function App(props: RouteComponentProps) {
             <Menu.Item key="/home" icon={<HomeOutlined />}>
               <NavLink to="/home">Home</NavLink>
             </Menu.Item>
+            <Menu.Item key="/devices" icon={<DoubleRightOutlined />}>
+              <NavLink to="/devices">Device Registrations</NavLink>
+            </Menu.Item>
             <Menu.Item key="/todo" icon={<BugOutlined />}>
               <NavLink to="/todo">ToDo</NavLink>
             </Menu.Item>
-            {
-            }
+            {}
           </Menu>
         </Sider>
         <Switch>
           <Redirect exact from="/" to="/home" />
           <Route exact path="/home" component={HomePage} />
+          <Route exact path="/devices" component={DevicesPage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
       </Layout>

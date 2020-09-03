@@ -1,13 +1,22 @@
-import { ReactElement } from "react";
-import React from "react";
-import { Layout, PageHeader } from "antd";
+import React, { ReactNode } from "react";
+import { Layout, PageHeader, Spin } from "antd";
 
 export interface PageContentProps {
-  title: string;
-  children: ReactElement<any>;
+  title: ReactNode;
+  children: ReactNode;
+  spin?: boolean;
 }
 
 function PageContent(props: PageContentProps) {
+  const content = props.spin ? (
+    <div className="site-layout-background" style={{ minHeight: 360 }}>
+      <Spin>{props.children}</Spin>
+    </div>
+  ) : (
+    <div className="site-layout-background" style={{ minHeight: 360 }}>
+      {props.children}
+    </div>
+  );
   return (
     <Layout className="site-layout">
       <PageHeader title={props.title} />
@@ -19,9 +28,7 @@ function PageContent(props: PageContentProps) {
           minHeight: 280,
         }}
       >
-        <div className="site-layout-background" style={{ minHeight: 360 }}>
-          {props.children}
-        </div>
+        {content}
       </Layout.Content>
     </Layout>
   );
