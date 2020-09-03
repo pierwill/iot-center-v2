@@ -9,8 +9,26 @@ ToDo https://gitlab.com/bonitoo-io/influxdata/-/blob/master/iot-center/Technical
 
 ## Quick Start
 
-ToDo
+* Prerequisites
+   * node 12 or newer
+   * yarn 1.9.4 or newer
 
+### Run IoT Center Application with hot-swap
+
+```
+cd app
+yarn install
+yarn build
+yarn start
+```
+
+### Develop and Play IoT Center Application with hot-swap
+
+```
+cd app
+yarn install
+yarn dev
+```
 
 ## License
 
