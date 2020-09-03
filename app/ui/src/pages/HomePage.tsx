@@ -4,7 +4,7 @@ import PageContent from './PageContent'
 function Home() {
   return (
     <PageContent title="Welcome to IoT Center V2">
-       <span>Bill is a cat.</span>
+       <span>Adéla is a cat.</span>
     </PageContent>
   );
 }

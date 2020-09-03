@@ -19,7 +19,7 @@ async function getAuthorizations() {
 }
 
 /**
- * Gets all IoT Center client authorizations.
+ * Gets all IoT Center device authorizations.
  * @return promise with an authorization or undefined
  * @see https://influxdata.github.io/influxdb-client-js/influxdb-client-apis.authorization.html
  */
@@ -33,13 +33,13 @@ async function getIoTAuthorizations() {
   )
 }
 /**
- * Gets IoT Center client authorization.
+ * Gets IoT Center device authorization.
  * @return promise with an authorization or undefined
  * @see https://influxdata.github.io/influxdb-client-js/influxdb-client-apis.authorization.html
  */
-async function getIoTAuthorization(clientId) {
+async function getIoTAuthorization(deviceId) {
   const authorizations = await getAuthorizations()
-  const descriptionPrefix = DESC_PREFIX + clientId
+  const descriptionPrefix = DESC_PREFIX + deviceId
   const {id: bucketId} = await getBucket()
   const retVal = authorizations.reduce((acc, val) => {
     if (val.description.startsWith(descriptionPrefix)) {
@@ -59,20 +59,20 @@ async function getIoTAuthorization(clientId) {
 }
 
 /**
- * Creates authorization for a supplied clientId
- * @param {string} clientId client identifier
+ * Creates authorization for a supplied deviceId
+ * @param {string} deviceId client identifier
  * @return {import('@influxdata/influxdb-client-apis').Authorization} promise with authorization or error
  */
-async function createIoTAuthorization(clientId) {
+async function createIoTAuthorization(deviceId) {
   const {id: orgID} = await getOrganization()
   const {id: bucketID} = await getBucket(INFLUX_BUCKET)
   console.log(
-    `createIoTAuthorization: clientId=${clientId} orgID=${orgID} bucketID=${bucketID}`
+    `createIoTAuthorization: deviceId=${deviceId} orgID=${orgID} bucketID=${bucketID}`
   )
   return await authorizationsAPI.postAuthorizations({
     body: {
       orgID,
-      description: DESC_PREFIX + clientId,
+      description: DESC_PREFIX + deviceId,
       permissions: [
         {
           action: 'read',
@@ -101,7 +101,7 @@ async function deleteAuthorization(key) {
  * @param {import('@influxdata/influxdb-client-apis').Authorization} authorization
  * @return client identifier
  */
-function getClientId(authorization) {
+function getDeviceId(authorization) {
   const description = String(authorization.description)
   if (description.startsWith(DESC_PREFIX)){
     return description.substring(DESC_PREFIX.length)
@@ -130,7 +130,7 @@ function isBucketRWAuthorized(authorization, bucketId) {
 
 module.exports = {
   getAuthorizations,
-  getClientId,
+  getDeviceId,
   getIoTAuthorizations,
   getIoTAuthorization,
   createIoTAuthorization,
