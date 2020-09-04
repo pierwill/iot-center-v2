@@ -97,43 +97,45 @@ async function writeEmulatedData(
   if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
     lastTime = toTime - 30 * 24 * 60 * 60 * 1000;
   }
-
-  const batchSize = 2000;
-  const influxDB = new InfluxDB({ url: "/influx", token });
-  const writeApi = influxDB.getWriteApi(
-    org,
-    bucket,
-    "ms" as WritePrecision.ms,
-    { batchSize: batchSize + 1, defaultTags: { clientId: id } }
-  );
-  let pointsWritten = 0;
   const totalPoints = Math.trunc((toTime - lastTime) / 60_000);
-  try{
-    // write random temperatures
-    const point = new Point("air"); // reuse the same point to spare memory
-    onProgress(0, 0, totalPoints);
-    while (lastTime < toTime) {
-      lastTime += 60_000; // emulate next minute
-      point
-        .floatField("temperature", 10 + Math.trunc(100 * Math.random()) / 10)
-        .timestamp(lastTime);
-      writeApi.writePoint(point);
-  
-      pointsWritten++;
-      if (pointsWritten % batchSize === 0) {
-        await writeApi.flush();
-        onProgress(
-          (pointsWritten / totalPoints) * 100,
-          pointsWritten,
-          totalPoints
-        );
+  let pointsWritten = 0;
+  if (totalPoints>0){
+    const batchSize = 2000;
+    const influxDB = new InfluxDB({ url: "/influx", token });
+    const writeApi = influxDB.getWriteApi(
+      org,
+      bucket,
+      "ms" as WritePrecision.ms,
+      { batchSize: batchSize + 1, defaultTags: { clientId: id } }
+    );
+    try{
+      // write random temperatures
+      const point = new Point("air"); // reuse the same point to spare memory
+      onProgress(0, 0, totalPoints);
+      while (lastTime < toTime) {
+        lastTime += 60_000; // emulate next minute
+        point
+          .floatField("temperature", 10 + Math.trunc(100 * Math.random()) / 10)
+          .timestamp(lastTime);
+        writeApi.writePoint(point);
+    
+        pointsWritten++;
+        if (pointsWritten % batchSize === 0) {
+          await writeApi.flush();
+          onProgress(
+            (pointsWritten / totalPoints) * 100,
+            pointsWritten,
+            totalPoints
+          );
+        }
       }
+      await writeApi.flush()
+    } finally{
+      await writeApi.close();
     }
-    await writeApi.flush()
-  } finally{
-    await writeApi.close();
+    onProgress(100, pointsWritten, totalPoints);
   }
-  onProgress(100, pointsWritten, totalPoints);
+
   return pointsWritten;
 }
 
@@ -177,21 +179,27 @@ function VirtualDevicePage() {
         if (count) {
           antdMessage.success(
             <>
-              New masurement point(s) were written to InfluxDB.
+              New measurement point(s) were written to InfluxDB.
               <br />
               Measurement points written: <b>{count}</b>
             </>
           );
+          setDataStamp(dataStamp + 1); // reload device data
         } else {
           antdMessage.info(
             `No new data were written to InfluxDB, the current measurement is already written`
           );
         }
       })
-      .finally(() => {
-        setDataStamp(dataStamp + 1);
-        setProgress(-1);
-      });
+      .catch((e) => {
+        console.error(e);
+        setMessage({
+          title: "Cannot write data",
+          description: String(e),
+          type: "error",
+        });
+      })
+      .finally(() => setProgress(-1));
   }
 
   return (
