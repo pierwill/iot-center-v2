@@ -6,6 +6,7 @@ const {INFLUX_BUCKET} = require('../env')
 
 const authorizationsAPI = new AuthorizationsAPI(influxdb)
 const DESC_PREFIX = 'IoT Center: '
+const CREATE_BUCKET_SPECIFIC_AUTHORIZATIONS = false
 
 /**
  * Gets all authorizations.
@@ -65,7 +66,10 @@ async function getIoTAuthorization(deviceId) {
  */
 async function createIoTAuthorization(deviceId) {
   const {id: orgID} = await getOrganization()
-  const {id: bucketID} = await getBucket(INFLUX_BUCKET)
+  let bucketID = undefined
+  if (CREATE_BUCKET_SPECIFIC_AUTHORIZATIONS) {
+    bucketID = await getBucket(INFLUX_BUCKET).id
+  }
   console.log(
     `createIoTAuthorization: deviceId=${deviceId} orgID=${orgID} bucketID=${bucketID}`
   )
@@ -103,7 +107,7 @@ async function deleteAuthorization(key) {
  */
 function getDeviceId(authorization) {
   const description = String(authorization.description)
-  if (description.startsWith(DESC_PREFIX)){
+  if (description.startsWith(DESC_PREFIX)) {
     return description.substring(DESC_PREFIX.length)
   }
   return description

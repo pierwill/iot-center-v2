@@ -1,8 +1,10 @@
 const express = require('express')
 const path = require('path')
+const proxy = require('express-http-proxy')
+
 const apis = require('./apis')
 const onboardInfluxDB = require('./influxdb/onboarding')
-const {logEnvironment} = require('./env')
+const {logEnvironment, INFLUX_URL} = require('./env')
 
 async function startApplication() {
   const app = express()
@@ -15,6 +17,10 @@ async function startApplication() {
 
   // APIs
   app.use('/api', apis)
+
+  // start proxy to InfluxDB to avoid CORS blocking with InfluXDB OSS v2 Beta
+  app.use('/influx', proxy(INFLUX_URL))
+  console.log(`Enable proxy from /influx/* to ${INFLUX_URL}/*`)
 
   // UI
   const uiBuildDir = path.join(__dirname, '../ui/build')

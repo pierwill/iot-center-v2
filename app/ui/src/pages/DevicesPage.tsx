@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from "react";
-import PageContent from "./PageContent";
+import PageContent, { Message } from "./PageContent";
 import {
-  Alert,
   Table,
   Button,
   Popconfirm,
-  message as antMessage,
+  message as antdMessage,
   Tooltip,
   Modal,
   Form,
@@ -18,23 +17,23 @@ interface DeviceInfo {
   createdAt: string;
 }
 
-interface Message {
-  title: string;
-  description: string;
-  type: "info" | "error";
-}
-
 const NO_DEVICES: Array<DeviceInfo> = [];
-const NO_MESSAGE: Message | undefined = undefined;
 
 function DevicesPage() {
   const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState(NO_MESSAGE);
+  const [message, setMessage] = useState<Message | undefined>(undefined);
   const [data, setData] = useState(NO_DEVICES);
-  const [dataTime, setDataTime] = useState(Date.now());
+  const [dataStamp, setDataStamp] = useState(0);
   useEffect(() => {
     setLoading(false);
     fetch("/api/devices")
+      .then(async (response) => {
+        if (response.status >= 300) {
+          const text = await response.text();
+          throw new Error(`${response.status} ${text}`);
+        }
+        return response;
+      })
       .then((response) => response.json())
       .then(setData)
       .catch((e) =>
@@ -45,7 +44,7 @@ function DevicesPage() {
         })
       )
       .finally(() => setLoading(false));
-  }, [dataTime]);
+  }, [dataStamp]);
 
   const removeAuthorization = (device: DeviceInfo) => {
     setLoading(true);
@@ -55,10 +54,11 @@ function DevicesPage() {
           const text = await response.text();
           throw new Error(`${response.status} ${text}`);
         }
+        return response;
       })
       .then(() => {
         setLoading(false);
-        antMessage.success(`Device ${device.deviceId} was unregistered`, 2);
+        antdMessage.success(`Device ${device.deviceId} was unregistered`, 2);
       })
       .catch((e) => {
         setLoading(false);
@@ -68,7 +68,7 @@ function DevicesPage() {
           type: "error",
         });
       })
-      .finally(() => setDataTime(Date.now()));
+      .finally(() => setDataStamp(dataStamp + 1));
   };
 
   const addAuthorization = (deviceId: string) => {
@@ -84,9 +84,9 @@ function DevicesPage() {
       .then(({ registered }) => {
         setLoading(false);
         if (registered) {
-          antMessage.success(`Device '${deviceId}' was registered`, 2);
+          antdMessage.success(`Device '${deviceId}' was registered`, 2);
         } else {
-          antMessage.success(`Device '${deviceId}' is already registered`, 2);
+          antdMessage.success(`Device '${deviceId}' is already registered`, 2);
         }
       })
       .catch((e) => {
@@ -97,7 +97,7 @@ function DevicesPage() {
           type: "error",
         });
       })
-      .finally(() => setDataTime(Date.now()));
+      .finally(() => setDataStamp(dataStamp + 1));
   };
 
   // define table columns
@@ -131,21 +131,12 @@ function DevicesPage() {
   ];
 
   return (
-    <PageContent title="Device Registrations" spin={loading}>
-      {message ? (
-        <Alert
-          message={message.title}
-          description={message.description}
-          type={message.type}
-          showIcon
-          closable
-        />
-      ) : undefined}
+    <PageContent title="Device Registrations" spin={loading} message={message}>
       <Table dataSource={data} columns={columnDefinitions}></Table>
       <Tooltip title="Reload Table">
         <Button
           type="primary"
-          onClick={() => setDataTime(Date.now)}
+          onClick={() => setDataStamp(dataStamp + 1)}
           style={{ marginRight: "8px" }}
         >
           Reload

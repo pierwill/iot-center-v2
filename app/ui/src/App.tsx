@@ -14,10 +14,12 @@ import {
   HomeOutlined,
   BugOutlined,
   DoubleRightOutlined,
+  FastForwardOutlined,
 } from "@ant-design/icons";
 
 import HomePage from "./pages/HomePage";
 import DevicesPage from "./pages/DevicesPage";
+import VirtualDevicePage from "./pages/VirtualDevicePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 const { Header, Sider } = Layout;
@@ -49,6 +51,9 @@ function App(props: RouteComponentProps) {
             <Menu.Item key="/devices" icon={<DoubleRightOutlined />}>
               <NavLink to="/devices">Device Registrations</NavLink>
             </Menu.Item>
+            <Menu.Item key="/virtualDevice" icon={<FastForwardOutlined />}>
+              <NavLink to="/virtualDevice">Virtual Device</NavLink>
+            </Menu.Item>
             <Menu.Item key="/todo" icon={<BugOutlined />}>
               <NavLink to="/todo">ToDo</NavLink>
             </Menu.Item>
@@ -59,6 +64,7 @@ function App(props: RouteComponentProps) {
           <Redirect exact from="/" to="/home" />
           <Route exact path="/home" component={HomePage} />
           <Route exact path="/devices" component={DevicesPage} />
+          <Route exact path="/virtualDevice" component={VirtualDevicePage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
       </Layout>

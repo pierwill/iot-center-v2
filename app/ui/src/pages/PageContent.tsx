@@ -1,10 +1,17 @@
 import React, { ReactNode } from "react";
-import { Layout, PageHeader, Spin } from "antd";
+import { Layout, PageHeader, Spin, Alert } from "antd";
+
+export interface Message {
+  title: string;
+  description: string;
+  type: "info" | "error";
+}
 
 export interface PageContentProps {
   title: ReactNode;
   children: ReactNode;
   spin?: boolean;
+  message?: Message
 }
 
 function PageContent(props: PageContentProps) {
@@ -28,6 +35,15 @@ function PageContent(props: PageContentProps) {
           minHeight: 280,
         }}
       >
+      {props.message ? (
+        <Alert
+          message={props.message.title}
+          description={props.message.description}
+          type={props.message.type}
+          showIcon
+          closable
+        />
+      ) : undefined}
         {content}
       </Layout.Content>
     </Layout>

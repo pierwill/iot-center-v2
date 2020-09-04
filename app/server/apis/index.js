@@ -23,7 +23,7 @@ router.get('/env/:deviceId', async (req, res) => {
     influx_org: env.INFLUX_ORG,
     influx_token: authorization.token,
     influx_bucket: env.INFLUX_BUCKET,
-    client_id: req.params.deviceId,
+    id: req.params.deviceId,
     registered,
   }
   res.json(result)
