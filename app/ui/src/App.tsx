@@ -29,9 +29,20 @@ const PAGE_HELP: Record<string, { file: string }> = {
   "/devices": { file: "/help/DevicesPage.md" },
 };
 
+function useHelpCollapsed(): [boolean, (v: boolean) => void] {
+  const [helpCollapsed, setHelpCollapsed] = useState(
+    localStorage?.getItem("helpCollapsed") === "true"
+  );
+  const changeHelpCollapsed = (v: boolean) => {
+    setHelpCollapsed(v);
+    localStorage?.setItem("helpCollapsed", String(v));
+  };
+  return [helpCollapsed, changeHelpCollapsed];
+}
+
 function App(props: RouteComponentProps) {
   const [menuCollapsed, setMenuCollapsed] = useState(false);
-  const [helpCollapsed, setHelpCollapsed] = useState(false);
+  const [helpCollapsed, setHelpCollapsed] = useHelpCollapsed();
   const [helpText, setHelpText] = useState("");
   const page = PAGE_HELP[props.location.pathname];
   useEffect(() => {
