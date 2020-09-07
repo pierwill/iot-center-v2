@@ -25,28 +25,30 @@ function PageContent(props: PageContentProps) {
     </div>
   );
   return (
-    <Layout className="site-layout">
-      <PageHeader title={props.title} />
-      <Layout.Content
-        style={{
-          paddingLeft: 24,
-          paddingRight: 24,
-          margin: 0,
-          minHeight: 280,
-        }}
-      >
-        {props.message ? (
-          <Alert
-            message={props.message.title}
-            description={props.message.description}
-            type={props.message.type}
-            showIcon
-            closable
-          />
-        ) : undefined}
-        {content}
-      </Layout.Content>
-    </Layout>
+    <Layout.Content
+      style={{
+        paddingLeft: 24,
+        paddingRight: 24,
+        margin: 0,
+        minHeight: 280,
+        minWidth: 350
+      }}
+    >
+      <PageHeader
+        title={props.title}
+        style={{ paddingLeft: 0, paddingRight: 0 }}
+      />
+      {props.message ? (
+        <Alert
+          message={props.message.title}
+          description={props.message.description}
+          type={props.message.type}
+          showIcon
+          closable
+        />
+      ) : undefined}
+      {content}
+    </Layout.Content>
   );
 }
 export default PageContent;

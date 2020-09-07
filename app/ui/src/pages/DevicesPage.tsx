@@ -96,7 +96,7 @@ function DevicesPage() {
           title: "Cannot register device",
           description: String(e),
           type: "error",
-        });
+        }); 
       })
       .finally(() => setDataStamp(dataStamp + 1));
   };
