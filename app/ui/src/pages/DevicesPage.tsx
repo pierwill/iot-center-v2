@@ -10,6 +10,7 @@ import {
   Form,
   Input,
 } from "antd";
+import { Link } from "react-router-dom";
 
 interface DeviceInfo {
   key: string;
@@ -106,6 +107,7 @@ function DevicesPage() {
       title: "Device ID",
       dataIndex: "deviceId",
       defaultSortOrder: "ascend" as "ascend",
+      render: (deviceId: string) => (<Link to={`/devices/${deviceId}`}>{deviceId}</Link>),
       sorter: (a: DeviceInfo, b: DeviceInfo) =>
         a.deviceId > b.deviceId ? 1 : -1,
     },

@@ -26,15 +26,22 @@ router.get(
     let authorization = await getIoTAuthorization(deviceId)
     let registered = false
     if (!authorization) {
-      authorization = await createIoTAuthorization(deviceId)
-      registered = true
+      if (req.query.register !== 'false') {
+        authorization = await createIoTAuthorization(deviceId)
+        registered = true
+      } else {
+        return res.json({
+          id: deviceId,
+          registered,
+        })
+      }
     }
     const result = {
       influx_url: env.INFLUX_URL,
       influx_org: env.INFLUX_ORG,
       influx_token: authorization.token,
       influx_bucket: env.INFLUX_BUCKET,
-      id: req.params.deviceId,
+      id: deviceId,
       registered,
     }
     res.json(result)

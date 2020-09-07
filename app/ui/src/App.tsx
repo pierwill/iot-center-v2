@@ -51,8 +51,8 @@ function App(props: RouteComponentProps) {
             <Menu.Item key="/devices" icon={<DoubleRightOutlined />}>
               <NavLink to="/devices">Device Registrations</NavLink>
             </Menu.Item>
-            <Menu.Item key="/virtualDevice" icon={<FastForwardOutlined />}>
-              <NavLink to="/virtualDevice">Virtual Device</NavLink>
+            <Menu.Item key="/devices/virtual_device" icon={<FastForwardOutlined />}>
+              <NavLink to="/devices/virtual_device">Virtual Device</NavLink>
             </Menu.Item>
             <Menu.Item key="/todo" icon={<BugOutlined />}>
               <NavLink to="/todo">ToDo</NavLink>
@@ -64,7 +64,7 @@ function App(props: RouteComponentProps) {
           <Redirect exact from="/" to="/home" />
           <Route exact path="/home" component={HomePage} />
           <Route exact path="/devices" component={DevicesPage} />
-          <Route exact path="/virtualDevice" component={VirtualDevicePage} />
+          <Route exact path="/devices/:deviceId" component={VirtualDevicePage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
       </Layout>

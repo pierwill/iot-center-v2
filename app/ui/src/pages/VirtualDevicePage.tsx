@@ -13,6 +13,7 @@ import {
   Progress,
   Descriptions,
 } from "antd";
+import { RouteComponentProps } from "react-router-dom";
 
 interface DeviceConfig {
   influx_url: string;
@@ -29,18 +30,21 @@ interface DeviceData {
   count?: string;
 }
 type ProgressFn = (percent: number, current: number, total: number) => void;
+const VIRTUAL_DEVICE = "virtual_device";
 
 async function fetchDeviceConfig(
-  deviceId = "virtual_device"
+  deviceId = VIRTUAL_DEVICE
 ): Promise<DeviceConfig> {
-  const response = await fetch(`/api/env/${deviceId}`);
+  const response = await fetch(
+    `/api/env/${deviceId}?register=${deviceId === VIRTUAL_DEVICE}`
+  );
   if (response.status >= 300) {
     const text = await response.text();
     throw new Error(`${response.status} ${text}`);
   }
   const deviceConfig: DeviceConfig = await response.json();
   if (!deviceConfig.influx_token) {
-    throw new Error(`Device 'virtualDevice' is not authorized`);
+    throw new Error(`Device '${deviceId}' is not authorized!`);
   }
   return deviceConfig;
 }
@@ -139,7 +143,12 @@ async function writeEmulatedData(
   return pointsWritten;
 }
 
-function VirtualDevicePage() {
+interface Props {
+  deviceId?: string;
+}
+
+function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
+  const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE;
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Message | undefined>();
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>();
@@ -151,7 +160,7 @@ function VirtualDevicePage() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const deviceConfig = await fetchDeviceConfig();
+        const deviceConfig = await fetchDeviceConfig(deviceId);
         const deviceData = await fetchDeviceData(deviceConfig);
         setDeviceData(deviceData);
       } catch (e) {
@@ -167,7 +176,7 @@ function VirtualDevicePage() {
     };
 
     fetchData();
-  }, [dataStamp]);
+  }, [dataStamp, deviceId]);
 
   function writeData() {
     const onProgress: ProgressFn = (percent, current, total) => {
@@ -205,12 +214,22 @@ function VirtualDevicePage() {
   }
 
   return (
-    <PageContent title="Virtual Device" message={message} spin={loading}>
-      <p>
-        This page writes temperature measurements for the last 30 days from an
-        emulated device, the temperature is reported every minute.
-      </p>
-      <br />
+    <PageContent
+      title={
+        deviceId === VIRTUAL_DEVICE ? "Virtual Device" : `Device ${deviceId}`
+      }
+      message={message}
+      spin={loading}
+    >
+      {deviceId === VIRTUAL_DEVICE ? (
+        <>
+          <p>
+            This page writes temperature measurements for the last 30 days from
+            an emulated device, the temperature is reported every minute.
+          </p>
+          <br />
+        </>
+      ) : undefined}
       <Descriptions title="Device Configuration">
         <Descriptions.Item label="Device ID">
           {deviceData?.config.id}
@@ -244,21 +263,25 @@ function VirtualDevicePage() {
           {deviceData?.maxValue}
         </Descriptions.Item>
       </Descriptions>
-      <br />
-      <div style={{ visibility: progress >= 0 ? "visible" : "hidden" }}>
-        <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
-      </div>
-      <Tooltip title="Write Missing Data for the last 30 days">
+      {deviceId === VIRTUAL_DEVICE ? (
         <>
-          <Button
-            onClick={writeData}
-            disabled={progress !== -1}
-            style={{ marginRight: "8px" }}
-          >
-            Write New Data
-          </Button>
+          <br />
+          <div style={{ visibility: progress >= 0 ? "visible" : "hidden" }}>
+            <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
+          </div>
+          <Tooltip title="Write Missing Data for the last 30 days">
+            <>
+              <Button
+                onClick={writeData}
+                disabled={progress !== -1}
+                style={{ marginRight: "8px" }}
+              >
+                Write New Data
+              </Button>
+            </>
+          </Tooltip>
         </>
-      </Tooltip>
+      ) : undefined}
       <Tooltip title="Reload Device Data">
         <Button
           onClick={() => setDataStamp(dataStamp + 1)}
