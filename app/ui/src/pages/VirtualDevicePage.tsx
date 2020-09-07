@@ -99,7 +99,7 @@ async function writeEmulatedData(
   }
   const totalPoints = Math.trunc((toTime - lastTime) / 60_000);
   let pointsWritten = 0;
-  if (totalPoints>0){
+  if (totalPoints > 0) {
     const batchSize = 2000;
     const influxDB = new InfluxDB({ url: "/influx", token });
     const writeApi = influxDB.getWriteApi(
@@ -108,7 +108,7 @@ async function writeEmulatedData(
       "ms" as WritePrecision.ms,
       { batchSize: batchSize + 1, defaultTags: { clientId: id } }
     );
-    try{
+    try {
       // write random temperatures
       const point = new Point("air"); // reuse the same point to spare memory
       onProgress(0, 0, totalPoints);
@@ -118,7 +118,7 @@ async function writeEmulatedData(
           .floatField("temperature", 10 + Math.trunc(100 * Math.random()) / 10)
           .timestamp(lastTime);
         writeApi.writePoint(point);
-    
+
         pointsWritten++;
         if (pointsWritten % batchSize === 0) {
           await writeApi.flush();
@@ -129,8 +129,8 @@ async function writeEmulatedData(
           );
         }
       }
-      await writeApi.flush()
-    } finally{
+      await writeApi.flush();
+    } finally {
       await writeApi.close();
     }
     onProgress(100, pointsWritten, totalPoints);
@@ -171,7 +171,9 @@ function VirtualDevicePage() {
 
   function writeData() {
     const onProgress: ProgressFn = (percent, current, total) => {
-      console.log(`writeData ${current}/${total} (${Math.trunc(percent*100)/100}%)`);
+      console.log(
+        `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
+      );
       setProgress(percent);
     };
     writeEmulatedData(deviceData as DeviceData, onProgress)
@@ -227,11 +229,13 @@ function VirtualDevicePage() {
         </Descriptions.Item>
       </Descriptions>
       <Descriptions title="Device Measurements (last 30 days)">
-      <Descriptions.Item label="Measurement Points">
+        <Descriptions.Item label="Measurement Points">
           {deviceData?.count}
         </Descriptions.Item>
         <Descriptions.Item label="Last measurement Time">
-          {deviceData?.maxTime ? new Date(deviceData?.maxTime).toString() : undefined}
+          {deviceData?.maxTime
+            ? new Date(deviceData?.maxTime).toString()
+            : undefined}
         </Descriptions.Item>
         <Descriptions.Item label="Minimum Temperature">
           {deviceData?.minValue}
@@ -241,8 +245,8 @@ function VirtualDevicePage() {
         </Descriptions.Item>
       </Descriptions>
       <br />
-      <div style={{visibility: progress>=0 ? "visible": "hidden"}}>
-        <Progress percent={progress>=0 ? Math.trunc(progress) : 0} />
+      <div style={{ visibility: progress >= 0 ? "visible" : "hidden" }}>
+        <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
       </div>
       <Tooltip title="Write Missing Data for the last 30 days">
         <>
