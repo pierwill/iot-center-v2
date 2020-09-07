@@ -12,6 +12,7 @@ const CREATE_BUCKET_SPECIFIC_AUTHORIZATIONS = false
  * Gets all authorizations.
  * @return promise with an array of authorizations
  * @see https://influxdata.github.io/influxdb-client-js/influxdb-client-apis.authorization.html
+ * @return {Array<import('@influxdata/influxdb-client-apis').Authorization>}
  */
 async function getAuthorizations() {
   const {id: orgID} = await getOrganization()
@@ -23,6 +24,7 @@ async function getAuthorizations() {
  * Gets all IoT Center device authorizations.
  * @return promise with an authorization or undefined
  * @see https://influxdata.github.io/influxdb-client-js/influxdb-client-apis.authorization.html
+ * @return {Array<import('@influxdata/influxdb-client-apis').Authorization>}
  */
 async function getIoTAuthorizations() {
   const authorizations = await getAuthorizations()
@@ -37,6 +39,7 @@ async function getIoTAuthorizations() {
  * Gets IoT Center device authorization.
  * @return promise with an authorization or undefined
  * @see https://influxdata.github.io/influxdb-client-js/influxdb-client-apis.authorization.html
+ * @return {import('@influxdata/influxdb-client-apis').Authorization} promise with authorization, undefined or an error
  */
 async function getIoTAuthorization(deviceId) {
   const authorizations = await getAuthorizations()
@@ -62,7 +65,7 @@ async function getIoTAuthorization(deviceId) {
 /**
  * Creates authorization for a supplied deviceId
  * @param {string} deviceId client identifier
- * @return {import('@influxdata/influxdb-client-apis').Authorization} promise with authorization or error
+ * @return {import('@influxdata/influxdb-client-apis').Authorization} promise with authorization or an error
  */
 async function createIoTAuthorization(deviceId) {
   const {id: orgID} = await getOrganization()
