@@ -25,7 +25,7 @@ function DevicesPage() {
   const [data, setData] = useState(NO_DEVICES);
   const [dataStamp, setDataStamp] = useState(0);
   useEffect(() => {
-    setLoading(false);
+    setLoading(true);
     fetch("/api/devices")
       .then(async (response) => {
         if (response.status >= 300) {
