@@ -11,7 +11,7 @@ export interface PageContentProps {
   title: ReactNode;
   children: ReactNode;
   spin?: boolean;
-  message?: Message
+  message?: Message;
 }
 
 function PageContent(props: PageContentProps) {
@@ -35,15 +35,15 @@ function PageContent(props: PageContentProps) {
           minHeight: 280,
         }}
       >
-      {props.message ? (
-        <Alert
-          message={props.message.title}
-          description={props.message.description}
-          type={props.message.type}
-          showIcon
-          closable
-        />
-      ) : undefined}
+        {props.message ? (
+          <Alert
+            message={props.message.title}
+            description={props.message.description}
+            type={props.message.type}
+            showIcon
+            closable
+          />
+        ) : undefined}
         {content}
       </Layout.Content>
     </Layout>
