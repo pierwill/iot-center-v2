@@ -27,6 +27,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 const { Sider } = Layout;
 const PAGE_HELP: Record<string, { file: string }> = {
   "/devices": { file: "/help/DevicesPage.md" },
+  "/devices/virtual_device": { file: "/help/VirtualDevicePage.md" },
 };
 
 function useHelpCollapsed(): [boolean, (v: boolean) => void] {

@@ -15,7 +15,7 @@ import {
 import { RouteComponentProps } from "react-router-dom";
 
 import PageContent, { Message } from "./PageContent";
-import { FromFluxResult, Plot } from "@influxdata/giraffe";
+import { FromFluxResult, Plot, timeFormatter } from "@influxdata/giraffe";
 import toFromFluxResult from "../util/toFromFluxResult";
 
 interface DeviceConfig {
@@ -145,11 +145,21 @@ async function writeEmulatedData(
       while (lastTime < toTime) {
         lastTime += 60_000; // emulate next minute
         // calculate temperature as a predictable continuous functionto look better
-        let dateTemperature = 10 + 10 * Math.sin(((lastTime/DAY_MILLIS) % 30)/30*2*Math.PI)
+        let dateTemperature =
+          10 +
+          10 * Math.sin((((lastTime / DAY_MILLIS) % 30) / 30) * 2 * Math.PI);
         // it is much warmer around lunch time
-        dateTemperature += 10 + 10*Math.sin((lastTime % DAY_MILLIS)/DAY_MILLIS*2*Math.PI - Math.PI/2)
+        dateTemperature +=
+          10 +
+          10 *
+            Math.sin(
+              ((lastTime % DAY_MILLIS) / DAY_MILLIS) * 2 * Math.PI - Math.PI / 2
+            );
         point
-          .floatField("temperature", Math.trunc((dateTemperature + Math.random())*10)/10)
+          .floatField(
+            "temperature",
+            Math.trunc((dateTemperature + Math.random()) * 10) / 10
+          )
           .timestamp(lastTime);
         writeApi.writePoint(point);
 
@@ -301,7 +311,6 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
         <div style={{ width: "100%", height: 300 }}>
           <Plot
             config={{
-              table: deviceData.measurements.table,
               layers: [
                 {
                   type: "line",
@@ -310,6 +319,13 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
                   interpolation: "natural",
                 },
               ],
+              table: deviceData.measurements.table,
+              valueFormatters: {
+                _time: timeFormatter({
+                  timeZone: "UTC",
+                  format: "YYYY-MM-DD HH:mm:ss ZZ",
+                }),
+              },
             }}
           />
         </div>
