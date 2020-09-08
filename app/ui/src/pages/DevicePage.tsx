@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import PageContent, { Message } from "./PageContent";
 import {
   InfluxDB,
   flux,
@@ -15,6 +14,10 @@ import {
 } from "antd";
 import { RouteComponentProps } from "react-router-dom";
 
+import PageContent, { Message } from "./PageContent";
+import { FromFluxResult, Plot } from "@influxdata/giraffe";
+import toFromFluxResult from "../util/toFromFluxResult";
+
 interface DeviceConfig {
   influx_url: string;
   influx_org: string;
@@ -28,13 +31,12 @@ interface DeviceData {
   maxValue?: number;
   maxTime?: string;
   count?: string;
+  measurements?: FromFluxResult;
 }
 type ProgressFn = (percent: number, current: number, total: number) => void;
 const VIRTUAL_DEVICE = "virtual_device";
 
-async function fetchDeviceConfig(
-  deviceId = VIRTUAL_DEVICE
-): Promise<DeviceConfig> {
+async function fetchDeviceConfig(deviceId: string): Promise<DeviceConfig> {
   const response = await fetch(
     `/api/env/${deviceId}?register=${deviceId === VIRTUAL_DEVICE}`
   );
@@ -80,6 +82,29 @@ from(bucket: ${bucket})
     return { config, maxTime, minValue, maxValue, count };
   }
   return { config };
+}
+
+async function fetchDeviceMeasurements(
+  config: DeviceConfig
+): Promise<FromFluxResult> {
+  const {
+    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
+    influx_token: token,
+    influx_org: org,
+    influx_bucket: bucket,
+    id,
+  } = config;
+  const influxDB = new InfluxDB({ url: "/influx", token });
+  return await toFromFluxResult(
+    influxDB,
+    org,
+    flux`
+  from(bucket: ${bucket})
+    |> range(start: -30d)
+    |> filter(fn: (r) => r._measurement == "air")
+    |> filter(fn: (r) => r.clientId == ${id})
+    |> filter(fn: (r) => r._field == "temperature")`
+  );
 }
 
 async function writeEmulatedData(
@@ -161,7 +186,11 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
       setLoading(true);
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId);
-        const deviceData = await fetchDeviceData(deviceConfig);
+        const [deviceData, fromFluxResults] = await Promise.all([
+          fetchDeviceData(deviceConfig),
+          fetchDeviceMeasurements(deviceConfig),
+        ]);
+        deviceData.measurements = fromFluxResults;
         setDeviceData(deviceData);
       } catch (e) {
         console.error(e);
@@ -263,6 +292,23 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
           {deviceData?.maxValue}
         </Descriptions.Item>
       </Descriptions>
+      {deviceData?.measurements?.table ? (
+        <div style={{ width: "100%", height: 300 }}>
+          <Plot
+            config={{
+              table: deviceData.measurements.table,
+              layers: [
+                {
+                  type: "line",
+                  x: "_time",
+                  y: "_value",
+                  interpolation: "natural",
+                },
+              ],
+            }}
+          />
+        </div>
+      ) : undefined}
       {deviceId === VIRTUAL_DEVICE ? (
         <>
           <br />

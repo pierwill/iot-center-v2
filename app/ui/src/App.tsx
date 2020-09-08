@@ -21,7 +21,7 @@ import {
 
 import HomePage from "./pages/HomePage";
 import DevicesPage from "./pages/DevicesPage";
-import VirtualDevicePage from "./pages/VirtualDevicePage";
+import DevicePage from "./pages/DevicePage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 const { Sider } = Layout;
@@ -103,7 +103,7 @@ function App(props: RouteComponentProps) {
           <Route
             exact
             path="/devices/:deviceId"
-            component={VirtualDevicePage}
+            component={DevicePage}
           />
           <Route path="*" component={NotFoundPage} />
         </Switch>

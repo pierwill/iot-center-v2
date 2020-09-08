@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "@ant-design/icons": "^4.2.2",
+    "@influxdata/giraffe": "^0.29.0",
     "@influxdata/influxdb-client": "^1.6.0",
     "@influxdata/influxdb-client-apis": "^1.6.0",
     "@testing-library/jest-dom": "^4.2.4",
