@@ -9,14 +9,12 @@ import {
 } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
-import { Layout, Menu, Tooltip } from "antd";
+import { Layout, Menu } from "antd";
 import {
   HomeOutlined,
   BugOutlined,
   DoubleRightOutlined,
   FastForwardOutlined,
-  LeftOutlined,
-  RightOutlined,
 } from "@ant-design/icons";
 
 import HomePage from "./pages/HomePage";
@@ -101,64 +99,26 @@ function App(props: RouteComponentProps) {
           <Redirect exact from="/" to="/home" />
           <Route exact path="/home" component={HomePage} />
           <Route exact path="/devices" component={DevicesPage} />
-          <Route
-            exact
-            path="/devices/:deviceId"
-            component={DevicePage}
-          />
+          <Route exact path="/devices/:deviceId" component={DevicePage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
         {helpText ? (
-          helpCollapsed ? (
-            <Tooltip title="Show Help">
-              <div
-                className="ant-layout-sider-trigger"
-                style={{
-                  position: "absolute",
-                  bottom: 0,
-                  right: 0,
-                  paddingLeft: 16,
-                  paddingRight: 16,
-                }}
-                onClick={() => setHelpCollapsed(false)}
-              >
-                <span className="anticon">
-                  <LeftOutlined />
-                </span>
-              </div>
-            </Tooltip>
-          ) : (
-            <aside
-              className="ant-layout-sider ant-layout-sider-light ant-layout-sider-has-trigger"
-              style={{
-                width: "30vw",
-                paddingLeft: 16,
-                paddingRight: 16,
-                paddingTop: 24,
-                paddingBottom: 24,
-                minWidth: 200,
-              }}
-            >
-              <div className="ant-layout-sider-children">
-                <ReactMarkdown source={helpText} />
-              </div>
-              <div
-                className="ant-layout-sider-trigger"
-                style={{
-                  width: "30vw",
-                }}
-              >
-                <Tooltip title="Hide Help">
-                  <span
-                    className="anticon"
-                    onClick={() => setHelpCollapsed(true)}
-                  >
-                    <RightOutlined />
-                  </span>
-                </Tooltip>
-              </div>
-            </aside>
-          )
+          <Sider
+            reverseArrow
+            collapsible
+            collapsed={helpCollapsed}
+            onCollapse={() => setHelpCollapsed(!helpCollapsed)}
+            collapsedWidth={30}
+            theme="light"
+            width={"40vw"}
+            breakpoint="sm"
+          >
+            <div style={{ paddingLeft: 10, paddingRight: 10 }}>
+              <ReactMarkdown
+                source={helpText && !helpCollapsed ? helpText : ""}
+              />
+            </div>
+          </Sider>
         ) : undefined}
       </Layout>
     </div>
