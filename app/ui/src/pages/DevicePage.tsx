@@ -229,9 +229,9 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
 
   function writeData() {
     const onProgress: ProgressFn = (percent, current, total) => {
-      console.log(
-        `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
-      );
+      // console.log(
+      //   `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
+      // );
       setProgress(percent);
     };
     writeEmulatedData(deviceData as DeviceData, onProgress)
