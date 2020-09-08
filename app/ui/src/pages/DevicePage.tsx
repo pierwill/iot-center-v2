@@ -35,6 +35,7 @@ interface DeviceData {
 }
 type ProgressFn = (percent: number, current: number, total: number) => void;
 const VIRTUAL_DEVICE = "virtual_device";
+const DAY_MILLIS = 24 * 60 * 60 * 1000;
 
 async function fetchDeviceConfig(deviceId: string): Promise<DeviceConfig> {
   const response = await fetch(
@@ -143,8 +144,12 @@ async function writeEmulatedData(
       onProgress(0, 0, totalPoints);
       while (lastTime < toTime) {
         lastTime += 60_000; // emulate next minute
+        // calculate temperature as a predictable continuous functionto look better
+        let dateTemperature = 10 + 10 * Math.sin(((lastTime/DAY_MILLIS) % 30)/30*2*Math.PI)
+        // it is much warmer around lunch time
+        dateTemperature += 10 + 10*Math.sin((lastTime % DAY_MILLIS)/DAY_MILLIS*2*Math.PI - Math.PI/2)
         point
-          .floatField("temperature", 10 + Math.trunc(100 * Math.random()) / 10)
+          .floatField("temperature", Math.trunc((dateTemperature + Math.random())*10)/10)
           .timestamp(lastTime);
         writeApi.writePoint(point);
 
