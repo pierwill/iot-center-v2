@@ -187,15 +187,18 @@ interface Props {
   deviceId?: string;
 }
 
-function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
+function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
   const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE;
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Message | undefined>();
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>();
   const [dataStamp, setDataStamp] = useState(0);
   const [progress, setProgress] = useState(-1);
+  const writeAllowed =
+    deviceId === VIRTUAL_DEVICE ||
+    new URLSearchParams(location.search).get("write") === "true";
 
-  // fetch device configuration and relevant data
+  // fetch device configuration and data
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -205,7 +208,9 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig),
         ]);
-        deviceData.measurements = fromFluxResults;
+        if (fromFluxResults?.table?.length) {
+          deviceData.measurements = fromFluxResults;
+        }
         setDeviceData(deviceData);
       } catch (e) {
         console.error(e);
@@ -330,7 +335,7 @@ function VirtualDevicePage({ match }: RouteComponentProps<Props>) {
           />
         </div>
       ) : undefined}
-      {deviceId === VIRTUAL_DEVICE ? (
+      {writeAllowed ? (
         <>
           <br />
           <div style={{ visibility: progress >= 0 ? "visible" : "hidden" }}>
