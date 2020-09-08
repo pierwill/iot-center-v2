@@ -239,15 +239,13 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
         if (count) {
           antdMessage.success(
             <>
-              New measurement point(s) were written to InfluxDB.
-              <br />
-              Measurement points written: <b>{count}</b>
+              <b>{count}</b> measurement point{count>1?'s were':' was'} written to InfluxDB.
             </>
           );
           setDataStamp(dataStamp + 1); // reload device data
         } else {
           antdMessage.info(
-            `No new data were written to InfluxDB, the current measurement is already written`
+            `No new data were written to InfluxDB, the current measurement is already written.`
           );
         }
       })
