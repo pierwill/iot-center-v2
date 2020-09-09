@@ -15,6 +15,7 @@ async function toFromFluxResult(
   org: string,
   query: string | ParameterizedQuery
 ): Promise<FromFluxResult> {
+  // TODO replace by influxDB.getQueryApi(org).raw(query)
   const fullResponse = await new Promise<string>((resolve, reject) => {
     let result = ''
     influxDB.getQueryApi(org).queryLines(query, {
