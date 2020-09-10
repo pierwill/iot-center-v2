@@ -15,8 +15,12 @@ import {
 import { RouteComponentProps } from "react-router-dom";
 
 import PageContent, { Message } from "./PageContent";
-import { FromFluxResult, Plot, timeFormatter } from "@influxdata/giraffe";
-import toFromFluxResult from "../util/toFromFluxResult";
+import {
+  FromFluxResult,
+  Plot,
+  timeFormatter,
+  fromFlux,
+} from "@influxdata/giraffe";
 
 interface DeviceConfig {
   influx_url: string;
@@ -96,16 +100,13 @@ async function fetchDeviceMeasurements(
     id,
   } = config;
   const influxDB = new InfluxDB({ url: "/influx", token });
-  return await toFromFluxResult(
-    influxDB,
-    org,
-    flux`
+  const raw = await influxDB.getQueryApi(org).queryRaw(flux`
   from(bucket: ${bucket})
     |> range(start: -30d)
     |> filter(fn: (r) => r._measurement == "air")
     |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "temperature")`
-  );
+    |> filter(fn: (r) => r._field == "temperature")`);
+  return fromFlux(raw);
 }
 
 async function writeEmulatedData(
@@ -239,7 +240,8 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
         if (count) {
           antdMessage.success(
             <>
-              <b>{count}</b> measurement point{count>1?'s were':' was'} written to InfluxDB.
+              <b>{count}</b> measurement point{count > 1 ? "s were" : " was"}{" "}
+              written to InfluxDB.
             </>
           );
           setDataStamp(dataStamp + 1); // reload device data

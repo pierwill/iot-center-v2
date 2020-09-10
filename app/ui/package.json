@@ -5,7 +5,7 @@
   "dependencies": {
     "@ant-design/icons": "^4.2.2",
     "@influxdata/giraffe": "^0.29.0",
-    "@influxdata/influxdb-client": "^1.6.0",
+    "@influxdata/influxdb-client": "1.7.0-nightly.10",
     "@influxdata/influxdb-client-apis": "^1.6.0",
     "@testing-library/jest-dom": "^4.2.4",
     "@testing-library/react": "^9.3.2",

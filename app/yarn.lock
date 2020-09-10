@@ -1271,10 +1271,10 @@
   resolved "https://registry.yarnpkg.com/@influxdata/influxdb-client-apis/-/influxdb-client-apis-1.6.0.tgz#e8a5989bb99f8e840180b0b6ecc65ce98725bdec"
   integrity sha512-jQiux7eFafGfTVYMcGvCDs75zjxhLYcZDdr0U+x0aDpxvr0LEfLWd0BXdxF9sZwgPXtZ8XXfl/P9S7PXbJcxRg==
 
-"@influxdata/influxdb-client@^1.6.0":
-  version "1.6.0"
-  resolved "https://registry.yarnpkg.com/@influxdata/influxdb-client/-/influxdb-client-1.6.0.tgz#46da50714742dd73c99c66f0e7379be9212477b0"
-  integrity sha512-1WHusKmW88P//diAiAXDuO8Fpe5ju7e4QQCKcoPRZstXCGhICYPg8mcIBmurDJMHIUTziCZZjYxR+9jlyXuNaA==
+"@influxdata/influxdb-client@1.7.0-nightly.10":
+  version "1.7.0-nightly.10"
+  resolved "https://registry.yarnpkg.com/@influxdata/influxdb-client/-/influxdb-client-1.7.0-nightly.10.tgz#d3a10a5c1ad9f93715414e411fb8a176cbf1ee54"
+  integrity sha512-RShryV7V1ZJHa1piBDxytlTZ5aKmohSHT1Eu9zrwKR46xOhyDtNQ0nmYkMDNXZ7XUrz3+lHE7euuf5M4e29O0A==
 
 "@jest/console@^24.7.1", "@jest/console@^24.9.0":
   version "24.9.0"
