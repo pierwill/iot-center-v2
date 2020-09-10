@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   InfluxDB,
   flux,
-  WritePrecision,
   Point,
 } from "@influxdata/influxdb-client";
 import {
@@ -136,7 +135,7 @@ async function writeEmulatedData(
     const writeApi = influxDB.getWriteApi(
       org,
       bucket,
-      "ms" as WritePrecision.ms,
+      "ms",
       { batchSize: batchSize + 1, defaultTags: { clientId: id } }
     );
     try {
