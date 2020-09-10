@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  InfluxDB,
-  flux,
-  Point,
-} from "@influxdata/influxdb-client";
+import { InfluxDB, flux, Point } from "@influxdata/influxdb-client";
 import {
   Tooltip,
   Button,
   message as antdMessage,
   Progress,
   Descriptions,
+  Switch,
 } from "antd";
 import { RouteComponentProps } from "react-router-dom";
 
@@ -19,6 +16,7 @@ import {
   Plot,
   timeFormatter,
   fromFlux,
+  RawFluxDataTableLayerConfig,
 } from "@influxdata/giraffe";
 
 interface DeviceConfig {
@@ -35,6 +33,7 @@ interface DeviceData {
   maxTime?: string;
   count?: string;
   measurements?: FromFluxResult;
+  measurementsRaw?: string;
 }
 type ProgressFn = (percent: number, current: number, total: number) => void;
 const VIRTUAL_DEVICE = "virtual_device";
@@ -88,9 +87,7 @@ from(bucket: ${bucket})
   return { config };
 }
 
-async function fetchDeviceMeasurements(
-  config: DeviceConfig
-): Promise<FromFluxResult> {
+async function fetchDeviceMeasurements(config: DeviceConfig): Promise<string> {
   const {
     // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
     influx_token: token,
@@ -99,13 +96,12 @@ async function fetchDeviceMeasurements(
     id,
   } = config;
   const influxDB = new InfluxDB({ url: "/influx", token });
-  const raw = await influxDB.getQueryApi(org).queryRaw(flux`
+  return await influxDB.getQueryApi(org).queryRaw(flux`
   from(bucket: ${bucket})
     |> range(start: -30d)
     |> filter(fn: (r) => r._measurement == "air")
     |> filter(fn: (r) => r.clientId == ${id})
     |> filter(fn: (r) => r._field == "temperature")`);
-  return fromFlux(raw);
 }
 
 async function writeEmulatedData(
@@ -132,12 +128,10 @@ async function writeEmulatedData(
   if (totalPoints > 0) {
     const batchSize = 2000;
     const influxDB = new InfluxDB({ url: "/influx", token });
-    const writeApi = influxDB.getWriteApi(
-      org,
-      bucket,
-      "ms",
-      { batchSize: batchSize + 1, defaultTags: { clientId: id } }
-    );
+    const writeApi = influxDB.getWriteApi(org, bucket, "ms", {
+      batchSize: batchSize + 1,
+      defaultTags: { clientId: id },
+    });
     try {
       // write random temperatures
       const point = new Point("air"); // reuse the same point to spare memory
@@ -194,6 +188,7 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>();
   const [dataStamp, setDataStamp] = useState(0);
   const [progress, setProgress] = useState(-1);
+  const [graphView, setGraphView] = useState(true);
   const writeAllowed =
     deviceId === VIRTUAL_DEVICE ||
     new URLSearchParams(location.search).get("write") === "true";
@@ -204,12 +199,14 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
       setLoading(true);
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId);
-        const [deviceData, fromFluxResults] = await Promise.all([
+        const [deviceData, rawResults] = await Promise.all([
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig),
         ]);
-        if (fromFluxResults?.table?.length) {
-          deviceData.measurements = fromFluxResults;
+        deviceData.measurementsRaw = rawResults;
+        const measurements = fromFlux(rawResults);
+        if (measurements?.table?.length) {
+          deviceData.measurements = measurements;
         }
         setDeviceData(deviceData);
       } catch (e) {
@@ -316,12 +313,18 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
           <Plot
             config={{
               layers: [
-                {
-                  type: "line",
-                  x: "_time",
-                  y: "_value",
-                  interpolation: "natural",
-                },
+                graphView
+                  ? {
+                      type: "line",
+                      x: "_time",
+                      y: "_value",
+                      interpolation: "natural",
+                    }
+                  : ({
+                      type: "flux data table",
+                      files: [deviceData.measurementsRaw],
+                      parseObjects: false,
+                    } as RawFluxDataTableLayerConfig),
               ],
               table: deviceData.measurements.table,
               valueFormatters: {
@@ -361,6 +364,14 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
           Reload
         </Button>
       </Tooltip>
+      {deviceData?.measurementsRaw ? (
+        <Switch
+          checked={graphView}
+          onChange={(v: boolean) => setGraphView(v)}
+          checkedChildren="Graph View"
+          unCheckedChildren="Table View"
+        />
+      ) : undefined}
     </PageContent>
   );
 }
