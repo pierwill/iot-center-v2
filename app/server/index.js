@@ -35,7 +35,7 @@ async function startApplication() {
 
   // start HTTP server
   const port = process.env.PORT || 5000
-  app.listen(port)
+  app.listen(port, process.env.HOSTNAME || '0.0.0.0')
 
   logEnvironment()
   console.log(`Listening on http://localhost:${port}`)
