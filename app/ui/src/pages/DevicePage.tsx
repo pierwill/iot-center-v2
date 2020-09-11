@@ -181,7 +181,7 @@ interface Props {
   deviceId?: string;
 }
 
-function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
+function DevicePage({ match, location }: RouteComponentProps<Props>) {
   const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE;
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<Message | undefined>();
@@ -364,7 +364,7 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
           Reload
         </Button>
       </Tooltip>
-      {deviceData?.measurementsRaw ? (
+      {deviceData?.maxTime ? (
         <Switch
           checked={graphView}
           onChange={(v: boolean) => setGraphView(v)}
@@ -376,4 +376,4 @@ function VirtualDevicePage({ match, location }: RouteComponentProps<Props>) {
   );
 }
 
-export default VirtualDevicePage;
+export default DevicePage;
