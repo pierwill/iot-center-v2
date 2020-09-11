@@ -7,9 +7,15 @@ import {
 } from "@influxdata/influxdb-client";
 import { Table, ColumnType, ColumnData, fromFlux } from "@influxdata/giraffe";
 
+/**
+ * Stores data and metadata of a result column.
+ */
 interface ColumnStore {
+  /** column name */
   name: string;
+  /** column type */
   type: ColumnType;
+  /** column data */
   data: ColumnData;
   /** converts string to column value */
   toValue: (row: string[]) => number | string | boolean;
@@ -18,7 +24,7 @@ interface ColumnStore {
 }
 
 /**
- * Contains parameters that optimize creation of the results Table.
+ * Contains parameters that optimize/drive creation of the query result Table.
  */
 export interface TableOptions {
   /** max size of the result table */
@@ -27,8 +33,10 @@ export interface TableOptions {
   columns?: string[];
 }
 
-/** QUERY_OPTIMIZED false force queryTable to use queryApi.queryRaw to process results */
+/** QUERY_OPTIMIZED=false changes the queryTable function to simply use queryRawTable */
 export let QUERY_OPTIMIZED: boolean = true;
+/** prints out query and its processing time  */
+export let DEBUG_queryTable: boolean = true;
 
 /**
  * Executes a flux query and iterrativelly collects results into a giraffe's Table depending on the TableOptions supplied.
@@ -43,11 +51,13 @@ export async function queryTable(
   query: string | ParameterizedQuery,
   tableOptions: TableOptions = {}
 ): Promise<Table> {
-  const { maxTableSize, columns: onlyColumns } = tableOptions
+  const { maxTableSize, columns: onlyColumns } = tableOptions;
   const startTime = Date.now();
-  const timeSpentInThisFunction = () => {
-    console.log(`queryTable took ${Date.now() - startTime}ms: ${query}`);
-  };
+  const timeSpentInThisFunction = DEBUG_queryTable
+    ? () => {
+        console.log(`queryTable took ${Date.now() - startTime}ms: ${query}`);
+      }
+    : () => undefined;
   if (!QUERY_OPTIMIZED) {
     return await queryRawTable(queryApi, query).finally(
       timeSpentInThisFunction
@@ -64,7 +74,7 @@ export async function queryTable(
         if (tableMeta !== lastTableMeta) {
           dataColumns = [];
           for (const metaCol of tableMeta.columns) {
-            const type = toColumnType(metaCol.dataType);
+            const type = toGiraffeColumnType(metaCol.dataType);
             const name = metaCol.label;
             if (onlyColumns && !onlyColumns.includes(name)) {
               continue; // exclude this column
@@ -90,9 +100,9 @@ export async function queryTable(
                   type: existingColumn.type,
                   data: [],
                   multipleTypes: true,
-                  toValue: () => ''
+                  toValue: () => "",
                 };
-                // 
+                //
                 columnKey = `${metaCol.label} (${type})`;
                 existingColumn = columns[columnKey];
               }
@@ -136,7 +146,7 @@ export async function queryTable(
 }
 
 /**
- * Executes a flux to a raw string thens creates a Table from the string.
+ * Executes a flux to a raw string and then creates a giraffe Table from the string.
  *
  * @param queryApi InfluxDB client's QuiryApi instance
  * @param query query to execute
@@ -150,7 +160,14 @@ export async function queryRawTable(
   return fromFlux(raw).table;
 }
 
-
+/**
+ * Creates a function that returns a column value from row data.
+ *
+ * @param rowIndex index of a string value in the row data
+ * @param type column type
+ * @param def default value
+ * @returns column value to store in a table
+ */
 function toValueFn(
   rowIndex: number,
   type: ColumnType,
@@ -172,7 +189,13 @@ function toValueFn(
   }
 }
 
-function toColumnType(clientType: ClientColumnType): ColumnType {
+/**
+ * Converts between columns types.
+ *
+ * @param clientType @influxdata/influxdb-client column type
+ * @returns @influxdata/giraffe column type
+ */
+function toGiraffeColumnType(clientType: ClientColumnType): ColumnType {
   // from: 'boolean' | 'unsignedLong' | 'long' | 'double' | 'string' | 'base64Binary' | 'dateTime:RFC3339' | 'duration'
   // to:   'number' | 'string' | 'time' | 'boolean'
   switch (clientType) {
@@ -189,6 +212,7 @@ function toColumnType(clientType: ClientColumnType): ColumnType {
   }
 }
 
+// internal implementation of Table interface
 class SimpleTable implements Table {
   public readonly length: number = 0;
 
