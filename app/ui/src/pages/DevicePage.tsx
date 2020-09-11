@@ -6,18 +6,16 @@ import {
   message as antdMessage,
   Progress,
   Descriptions,
-  Switch,
 } from "antd";
 import { RouteComponentProps } from "react-router-dom";
 
 import PageContent, { Message } from "./PageContent";
 import {
-  FromFluxResult,
   Plot,
   timeFormatter,
-  fromFlux,
-  RawFluxDataTableLayerConfig,
+  Table as GirrafeTable,
 } from "@influxdata/giraffe";
+import { queryTable } from "../util/queryTable";
 
 interface DeviceConfig {
   influx_url: string;
@@ -32,8 +30,7 @@ interface DeviceData {
   maxValue?: number;
   maxTime?: string;
   count?: string;
-  measurements?: FromFluxResult;
-  measurementsRaw?: string;
+  measurementsTable?: GirrafeTable;
 }
 type ProgressFn = (percent: number, current: number, total: number) => void;
 const VIRTUAL_DEVICE = "virtual_device";
@@ -87,7 +84,9 @@ from(bucket: ${bucket})
   return { config };
 }
 
-async function fetchDeviceMeasurements(config: DeviceConfig): Promise<string> {
+async function fetchDeviceMeasurements(
+  config: DeviceConfig
+): Promise<GirrafeTable> {
   const {
     // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
     influx_token: token,
@@ -95,13 +94,21 @@ async function fetchDeviceMeasurements(config: DeviceConfig): Promise<string> {
     influx_bucket: bucket,
     id,
   } = config;
-  const influxDB = new InfluxDB({ url: "/influx", token });
-  return await influxDB.getQueryApi(org).queryRaw(flux`
+  const queryApi = new InfluxDB({ url: "/influx", token }).getQueryApi(org);
+  const result = await queryTable(
+    queryApi,
+    flux`
   from(bucket: ${bucket})
     |> range(start: -30d)
     |> filter(fn: (r) => r._measurement == "air")
     |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "temperature")`);
+    |> filter(fn: (r) => r._field == "temperature")`,
+    {
+      columns: ["_time", "_value"],
+    }
+  );
+  console.log(result)
+  return result
 }
 
 async function writeEmulatedData(
@@ -188,7 +195,6 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>();
   const [dataStamp, setDataStamp] = useState(0);
   const [progress, setProgress] = useState(-1);
-  const [graphView, setGraphView] = useState(true);
   const writeAllowed =
     deviceId === VIRTUAL_DEVICE ||
     new URLSearchParams(location.search).get("write") === "true";
@@ -199,15 +205,11 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
       setLoading(true);
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId);
-        const [deviceData, rawResults] = await Promise.all([
+        const [deviceData, table] = await Promise.all([
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig),
         ]);
-        deviceData.measurementsRaw = rawResults;
-        const measurements = fromFlux(rawResults);
-        if (measurements?.table?.length) {
-          deviceData.measurements = measurements;
-        }
+        deviceData.measurementsTable = table;
         setDeviceData(deviceData);
       } catch (e) {
         console.error(e);
@@ -308,25 +310,19 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
           {deviceData?.maxValue}
         </Descriptions.Item>
       </Descriptions>
-      {deviceData?.measurements?.table ? (
+      {deviceData?.measurementsTable?.length ? (
         <div style={{ width: "100%", height: 300 }}>
           <Plot
             config={{
               layers: [
-                graphView
-                  ? {
-                      type: "line",
-                      x: "_time",
-                      y: "_value",
-                      interpolation: "natural",
-                    }
-                  : ({
-                      type: "flux data table",
-                      files: [deviceData.measurementsRaw],
-                      parseObjects: false,
-                    } as RawFluxDataTableLayerConfig),
+                {
+                  type: "line",
+                  x: "_time",
+                  y: "_value",
+                  interpolation: "natural",
+                },
               ],
-              table: deviceData.measurements.table,
+              table: deviceData.measurementsTable,
               valueFormatters: {
                 _time: timeFormatter({
                   timeZone: "UTC",
@@ -364,14 +360,6 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
           Reload
         </Button>
       </Tooltip>
-      {deviceData?.maxTime ? (
-        <Switch
-          checked={graphView}
-          onChange={(v: boolean) => setGraphView(v)}
-          checkedChildren="Graph View"
-          unCheckedChildren="Table View"
-        />
-      ) : undefined}
     </PageContent>
   );
 }
