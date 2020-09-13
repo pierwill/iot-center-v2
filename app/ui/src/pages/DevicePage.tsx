@@ -107,7 +107,6 @@ async function fetchDeviceMeasurements(
       columns: ["_time", "_value"],
     }
   );
-  console.log(result)
   return result
 }
 

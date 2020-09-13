@@ -23,6 +23,17 @@ interface ColumnStore {
   multipleTypes?: true;
 }
 
+function removeMultiTypeColumns(
+  columns: Record<string, ColumnStore>
+): Record<string, ColumnStore> {
+  return Object.keys(columns).reduce((acc, val) => {
+    if (!columns[val].multipleTypes) {
+      acc[val] = columns[val];
+    }
+    return acc;
+  }, {} as Record<string, ColumnStore>);
+}
+
 /**
  * Contains parameters that optimize/drive creation of the query result Table.
  */
@@ -75,8 +86,7 @@ export async function queryTable(
           dataColumns = [];
           for (const metaCol of tableMeta.columns) {
             const type = toGiraffeColumnType(metaCol.dataType);
-            const name = metaCol.label;
-            if (onlyColumns && !onlyColumns.includes(name)) {
+            if (onlyColumns && !onlyColumns.includes(metaCol.label)) {
               continue; // exclude this column
             }
 
@@ -130,11 +140,11 @@ export async function queryTable(
         tableSize++;
       },
       complete() {
-        resolve(new SimpleTable(tableSize, columns));
+        resolve(new SimpleTable(tableSize, removeMultiTypeColumns(columns)));
       },
       error(e: Error) {
         if (e?.name === "AbortError") {
-          resolve(new SimpleTable(tableSize, columns));
+          resolve(new SimpleTable(tableSize, removeMultiTypeColumns(columns)));
         }
         reject(e);
       },
