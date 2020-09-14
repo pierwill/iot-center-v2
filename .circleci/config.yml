@@ -29,13 +29,18 @@ jobs:
       - checkout
       - init-app-dependencies
       - run:
-          name: Run tests
+          name: Run app/ui tests
           command: |
-            cd app
+            cd app/ui
             yarn test
             yarn build
+      - run:
+          name: Run app/server tests
+          command: |
+            cd app/server
+            yarn test
 workflows:
   build:
     jobs:
       - tests:
-          version: '12'
+          version: "12"
