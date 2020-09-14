@@ -17,8 +17,7 @@ services:
       - INFLUX_URL=http://influxdb_v2:9999
     volumes:
       - $PWD/app:/app
-      - $PWD/scripts:/scripts
     working_dir: /app
-    command: /scripts/run.sh
+    command: /app/run.sh
     depends_on:
       - influxdb_v2
