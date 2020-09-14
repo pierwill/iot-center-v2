@@ -52,7 +52,7 @@ export interface TableOptions {
 /** QUERY_OPTIMIZED=false changes the queryTable function to simply use queryRawTable */
 export let QUERY_OPTIMIZED = true // eslint-disable-line prefer-const
 /** prints out query and its processing time  */
-export let DEBUG_queryTable = true // eslint-disable-line prefer-const
+export let DEBUG_queryTable = false // eslint-disable-line prefer-const
 
 /**
  * Executes a flux query and iterrativelly collects results into a giraffe's Table depending on the TableOptions supplied.
