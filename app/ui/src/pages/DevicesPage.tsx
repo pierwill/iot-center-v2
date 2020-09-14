@@ -82,9 +82,9 @@ function DevicesPage() {
         }
         return response.json();
       })
-      .then(({ registered }) => {
+      .then(({ newlyRegistered }) => {
         setLoading(false);
-        if (registered) {
+        if (newlyRegistered) {
           antdMessage.success(`Device '${deviceId}' was registered`, 2);
         } else {
           antdMessage.success(`Device '${deviceId}' is already registered`, 2);

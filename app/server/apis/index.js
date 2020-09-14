@@ -68,7 +68,12 @@ router.get(
       influx_token: authorization.token,
       influx_bucket: env.INFLUX_BUCKET,
       id: deviceId,
-      registered,
+      default_lon: 14.4071543,
+      default_lat: 50.0873254,
+      measurement_interval: 60,
+      newlyRegistered: registered,
+      createdAt: authorization.createdAt,
+      updatedAt: authorization.updatedAt,
     }
     res.json(result)
   })
