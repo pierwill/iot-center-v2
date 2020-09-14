@@ -18,6 +18,31 @@ function handleError(wrapped) {
   }
 }
 
+// send simple response in text/plain when requested (arduino)
+router.use(function responseTextInPlaceOfJson(req, res, next) {
+  if (
+    req.header('accept') === 'text/plain' ||
+    req.param('accept') === 'text/plain'
+  ) {
+    const oldJson = res.json
+
+    res.json = function (...args) {
+      const [body] = args
+      if (typeof body === 'object' && body !== null) {
+        res.send(
+          Object.keys(body).reduce(
+            (acc, key) => acc + `${key}=${body[key]}\n`,
+            ''
+          )
+        )
+      } else {
+        oldJson.apply(res, args)
+      }
+    }
+  }
+  next()
+})
+
 // return environment for a specific device by its ID
 router.get(
   '/env/:deviceId',
@@ -30,6 +55,7 @@ router.get(
         authorization = await createIoTAuthorization(deviceId)
         registered = true
       } else {
+        res.status(403)
         return res.json({
           id: deviceId,
           registered,
