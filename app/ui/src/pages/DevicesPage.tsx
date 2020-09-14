@@ -11,6 +11,7 @@ import {
   Input,
 } from 'antd'
 import {Link} from 'react-router-dom'
+import {ColumnsType} from 'antd/lib/table'
 
 interface DeviceInfo {
   key: string
@@ -102,7 +103,7 @@ const DevicesPage: FunctionComponent = () => {
   }
 
   // define table columns
-  const columnDefinitions = [
+  const columnDefinitions: ColumnsType<DeviceInfo> = [
     {
       title: 'Device ID',
       dataIndex: 'deviceId',
