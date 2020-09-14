@@ -13,6 +13,9 @@ const onboarding_username = 'my-user'
 /** InfluxDB password  */
 const onboarding_password = 'my-password'
 
+/** recommended interval for client's to refresh configuration in seconds */
+const configuration_refresh = 3600
+
 function logEnvironment() {
   console.log(`INFLUX_URL=${INFLUX_URL}`)
   console.log(`INFLUX_TOKEN=${INFLUX_TOKEN ? '***' : ''}`)
@@ -26,6 +29,7 @@ module.exports = {
   INFLUX_ORG,
   onboarding_username,
   onboarding_password,
+  configuration_refresh,
   INFLUX_BUCKET,
   logEnvironment,
 }

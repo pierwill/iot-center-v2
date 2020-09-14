@@ -52,7 +52,7 @@ function App(props: RouteComponentProps) {
         .then((txt) =>
           setHelpText(txt.startsWith("<!") ? "HELP NOT FOUND" : txt)
         )
-        .catch((e) => console.error);
+        .catch(console.error);
     }
   }, [page]);
 

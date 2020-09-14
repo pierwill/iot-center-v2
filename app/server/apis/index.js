@@ -70,6 +70,8 @@ router.get(
       newlyRegistered: registered,
       createdAt: authorization.createdAt,
       updatedAt: authorization.updatedAt,
+      serverTime: new Date().toISOString(),
+      configuration_refresh: env.configuration_refresh,
     }
     res.json(result)
   })
