@@ -10,7 +10,7 @@ import {
 import {RouteComponentProps} from 'react-router-dom'
 
 import PageContent, {Message} from './PageContent'
-import {Plot, timeFormatter, Table as GirrafeTable} from '@influxdata/giraffe'
+import {Plot, timeFormatter, Table as GiraffeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
 
 interface DeviceConfig {
@@ -26,7 +26,7 @@ interface DeviceData {
   maxValue?: number
   maxTime?: string
   count?: string
-  measurementsTable?: GirrafeTable
+  measurementsTable?: GiraffeTable
 }
 type ProgressFn = (percent: number, current: number, total: number) => void
 const VIRTUAL_DEVICE = 'virtual_device'
@@ -82,7 +82,7 @@ from(bucket: ${bucket})
 
 async function fetchDeviceMeasurements(
   config: DeviceConfig
-): Promise<GirrafeTable> {
+): Promise<GiraffeTable> {
   const {
     // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
     influx_token: token,
