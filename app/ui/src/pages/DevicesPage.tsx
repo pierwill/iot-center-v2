@@ -28,78 +28,78 @@ const DevicesPage: FunctionComponent = () => {
   const [dataStamp, setDataStamp] = useState(0)
   useEffect(() => {
     setLoading(true)
-    fetch('/api/devices')
-      .then(async (response) => {
+    const fetchDevices = async () => {
+      try {
+        const response = await fetch('/api/devices')
         if (response.status >= 300) {
           const text = await response.text()
           throw new Error(`${response.status} ${text}`)
         }
-        return response
-      })
-      .then((response) => response.json())
-      .then(setData)
-      .catch((e) =>
+        const data = await response.json()
+        setData(data)
+      } catch (e) {
         setMessage({
           title: 'Cannot fetch data',
           description: String(e),
           type: 'error',
         })
-      )
-      .finally(() => setLoading(false))
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchDevices()
   }, [dataStamp])
 
-  const removeAuthorization = (device: DeviceInfo) => {
-    setLoading(true)
-    fetch(`/api/devices/${device.key}`, {method: 'DELETE'})
-      .then(async (response) => {
-        if (response.status >= 300) {
-          const text = await response.text()
-          throw new Error(`${response.status} ${text}`)
-        }
-        return response
+  const removeAuthorization = async (device: DeviceInfo) => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/devices/${device.key}`, {
+        method: 'DELETE',
       })
-      .then(() => {
-        setLoading(false)
-        antdMessage.success(`Device ${device.deviceId} was unregistered`, 2)
+      if (response.status >= 300) {
+        const text = await response.text()
+        throw new Error(`${response.status} ${text}`)
+      }
+      setLoading(false)
+      antdMessage.success(`Device ${device.deviceId} was unregistered`, 2)
+    } catch (e) {
+      setLoading(false)
+      setMessage({
+        title: 'Cannot remove device',
+        description: String(e),
+        type: 'error',
       })
-      .catch((e) => {
-        setLoading(false)
-        setMessage({
-          title: 'Cannot remove device',
-          description: String(e),
-          type: 'error',
-        })
-      })
-      .finally(() => setDataStamp(dataStamp + 1))
+    } finally {
+      setDataStamp(dataStamp + 1)
+    }
   }
 
-  const addAuthorization = (deviceId: string) => {
-    setLoading(true)
-    fetch(`/api/env/${deviceId}`)
-      .then(async (response) => {
-        if (response.status >= 300) {
-          const text = await response.text()
-          throw new Error(`${response.status} ${text}`)
-        }
-        return response.json()
+  const addAuthorization = async (deviceId: string) => {
+    try {
+      setLoading(true)
+      const response = await fetch(`/api/env/${deviceId}`)
+      if (response.status >= 300) {
+        const text = await response.text()
+        throw new Error(`${response.status} ${text}`)
+      }
+      const {newlyRegistered} = await response.json()
+
+      setLoading(false)
+      if (newlyRegistered) {
+        antdMessage.success(`Device '${deviceId}' was registered`, 2)
+      } else {
+        antdMessage.success(`Device '${deviceId}' is already registered`, 2)
+      }
+    } catch (e) {
+      setLoading(false)
+      setMessage({
+        title: 'Cannot register device',
+        description: String(e),
+        type: 'error',
       })
-      .then(({newlyRegistered}) => {
-        setLoading(false)
-        if (newlyRegistered) {
-          antdMessage.success(`Device '${deviceId}' was registered`, 2)
-        } else {
-          antdMessage.success(`Device '${deviceId}' is already registered`, 2)
-        }
-      })
-      .catch((e) => {
-        setLoading(false)
-        setMessage({
-          title: 'Cannot register device',
-          description: String(e),
-          type: 'error',
-        })
-      })
-      .finally(() => setDataStamp(dataStamp + 1))
+    } finally {
+      setDataStamp(dataStamp + 1)
+    }
   }
 
   // define table columns

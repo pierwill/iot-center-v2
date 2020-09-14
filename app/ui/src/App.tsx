@@ -47,12 +47,16 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
   useEffect(() => {
     setHelpText('')
     if (page) {
-      fetch(page.file)
-        .then((res) => res.text())
-        .then((txt) =>
-          setHelpText(txt.startsWith('<!') ? 'HELP NOT FOUND' : txt)
-        )
-        .catch(console.error)
+      // load markdown from file
+      ;(async () => {
+        try {
+          const response = await fetch(page.file)
+          const txt = await response.text()
+          setHelpText((txt ?? '').startsWith('<!') ? 'HELP NOT FOUND' : txt)
+        } catch (e) {
+          console.error(e)
+        }
+      })()
     }
   }, [page])
 
