@@ -1,29 +1,29 @@
-import React, { ReactNode } from "react";
-import { Layout, PageHeader, Spin, Alert } from "antd";
+import React, {ReactNode, FunctionComponent} from 'react'
+import {Layout, PageHeader, Spin, Alert} from 'antd'
 
 export interface Message {
-  title: string;
-  description: string;
-  type: "info" | "error";
+  title: string
+  description: string
+  type: 'info' | 'error'
 }
 
 export interface PageContentProps {
-  title: ReactNode;
-  children: ReactNode;
-  spin?: boolean;
-  message?: Message;
+  title: ReactNode
+  children: ReactNode
+  spin?: boolean
+  message?: Message
 }
 
-function PageContent(props: PageContentProps) {
+const PageContent: FunctionComponent<PageContentProps> = (props) => {
   const content = props.spin ? (
-    <div className="site-layout-background" style={{ minHeight: 360 }}>
+    <div className="site-layout-background" style={{minHeight: 360}}>
       <Spin>{props.children}</Spin>
     </div>
   ) : (
-    <div className="site-layout-background" style={{ minHeight: 360 }}>
+    <div className="site-layout-background" style={{minHeight: 360}}>
       {props.children}
     </div>
-  );
+  )
   return (
     <Layout.Content
       style={{
@@ -31,12 +31,12 @@ function PageContent(props: PageContentProps) {
         paddingRight: 24,
         margin: 0,
         minHeight: 280,
-        minWidth: 350
+        minWidth: 350,
       }}
     >
       <PageHeader
         title={props.title}
-        style={{ paddingLeft: 0, paddingRight: 0 }}
+        style={{paddingLeft: 0, paddingRight: 0}}
       />
       {props.message ? (
         <Alert
@@ -49,6 +49,6 @@ function PageContent(props: PageContentProps) {
       ) : undefined}
       {content}
     </Layout.Content>
-  );
+  )
 }
-export default PageContent;
+export default PageContent

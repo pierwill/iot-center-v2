@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect, FunctionComponent} from 'react'
 import {
   Switch,
   Route,
@@ -6,59 +6,59 @@ import {
   RouteComponentProps,
   withRouter,
   NavLink,
-} from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import "./App.css";
-import { Layout, Menu } from "antd";
+} from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
+import './App.css'
+import {Layout, Menu} from 'antd'
 import {
   HomeOutlined,
   BugOutlined,
   DoubleRightOutlined,
   FastForwardOutlined,
-} from "@ant-design/icons";
+} from '@ant-design/icons'
 
-import HomePage from "./pages/HomePage";
-import DevicesPage from "./pages/DevicesPage";
-import DevicePage from "./pages/DevicePage";
-import NotFoundPage from "./pages/NotFoundPage";
+import HomePage from './pages/HomePage'
+import DevicesPage from './pages/DevicesPage'
+import DevicePage from './pages/DevicePage'
+import NotFoundPage from './pages/NotFoundPage'
 
-const { Sider } = Layout;
-const PAGE_HELP: Record<string, { file: string }> = {
-  "/devices": { file: "/help/DevicesPage.md" },
-  "/devices/virtual_device": { file: "/help/VirtualDevicePage.md" },
-};
+const {Sider} = Layout
+const PAGE_HELP: Record<string, {file: string}> = {
+  '/devices': {file: '/help/DevicesPage.md'},
+  '/devices/virtual_device': {file: '/help/VirtualDevicePage.md'},
+}
 
 function useHelpCollapsed(): [boolean, (v: boolean) => void] {
   const [helpCollapsed, setHelpCollapsed] = useState(
-    localStorage?.getItem("helpCollapsed") === "true"
-  );
+    localStorage?.getItem('helpCollapsed') === 'true'
+  )
   const changeHelpCollapsed = (v: boolean) => {
-    setHelpCollapsed(v);
-    localStorage?.setItem("helpCollapsed", String(v));
-  };
-  return [helpCollapsed, changeHelpCollapsed];
+    setHelpCollapsed(v)
+    localStorage?.setItem('helpCollapsed', String(v))
+  }
+  return [helpCollapsed, changeHelpCollapsed]
 }
 
-function App(props: RouteComponentProps) {
-  const [menuCollapsed, setMenuCollapsed] = useState(false);
-  const [helpCollapsed, setHelpCollapsed] = useHelpCollapsed();
-  const [helpText, setHelpText] = useState("");
-  const page = PAGE_HELP[props.location.pathname];
+const App: FunctionComponent<RouteComponentProps> = (props) => {
+  const [menuCollapsed, setMenuCollapsed] = useState(false)
+  const [helpCollapsed, setHelpCollapsed] = useHelpCollapsed()
+  const [helpText, setHelpText] = useState('')
+  const page = PAGE_HELP[props.location.pathname]
   useEffect(() => {
-    setHelpText("");
+    setHelpText('')
     if (page) {
       fetch(page.file)
         .then((res) => res.text())
         .then((txt) =>
-          setHelpText(txt.startsWith("<!") ? "HELP NOT FOUND" : txt)
+          setHelpText(txt.startsWith('<!') ? 'HELP NOT FOUND' : txt)
         )
-        .catch(console.error);
+        .catch(console.error)
     }
-  }, [page]);
+  }, [page])
 
   return (
     <div className="App">
-      <Layout style={{ minHeight: "100vh" }}>
+      <Layout style={{minHeight: '100vh'}}>
         <Sider
           collapsible
           collapsed={menuCollapsed as boolean}
@@ -110,19 +110,19 @@ function App(props: RouteComponentProps) {
             onCollapse={() => setHelpCollapsed(!helpCollapsed)}
             collapsedWidth={30}
             theme="light"
-            width={"40vw"}
+            width={'40vw'}
             breakpoint="sm"
           >
-            <div style={{ paddingLeft: 10, paddingRight: 10 }}>
+            <div style={{paddingLeft: 10, paddingRight: 10}}>
               <ReactMarkdown
-                source={helpText && !helpCollapsed ? helpText : ""}
+                source={helpText && !helpCollapsed ? helpText : ''}
               />
             </div>
           </Sider>
         ) : undefined}
       </Layout>
     </div>
-  );
+  )
 }
 
-export default withRouter(App);
+export default withRouter(App)

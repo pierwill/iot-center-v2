@@ -1,54 +1,50 @@
-import React, { useState, useEffect } from "react";
-import { InfluxDB, flux, Point } from "@influxdata/influxdb-client";
+import React, {useState, useEffect, FunctionComponent} from 'react'
+import {InfluxDB, flux, Point} from '@influxdata/influxdb-client'
 import {
   Tooltip,
   Button,
   message as antdMessage,
   Progress,
   Descriptions,
-} from "antd";
-import { RouteComponentProps } from "react-router-dom";
+} from 'antd'
+import {RouteComponentProps} from 'react-router-dom'
 
-import PageContent, { Message } from "./PageContent";
-import {
-  Plot,
-  timeFormatter,
-  Table as GirrafeTable,
-} from "@influxdata/giraffe";
-import { queryTable } from "../util/queryTable";
+import PageContent, {Message} from './PageContent'
+import {Plot, timeFormatter, Table as GirrafeTable} from '@influxdata/giraffe'
+import {queryTable} from '../util/queryTable'
 
 interface DeviceConfig {
-  influx_url: string;
-  influx_org: string;
-  influx_token: string;
-  influx_bucket: string;
-  id: string;
+  influx_url: string
+  influx_org: string
+  influx_token: string
+  influx_bucket: string
+  id: string
 }
 interface DeviceData {
-  config: DeviceConfig;
-  minValue?: number;
-  maxValue?: number;
-  maxTime?: string;
-  count?: string;
-  measurementsTable?: GirrafeTable;
+  config: DeviceConfig
+  minValue?: number
+  maxValue?: number
+  maxTime?: string
+  count?: string
+  measurementsTable?: GirrafeTable
 }
-type ProgressFn = (percent: number, current: number, total: number) => void;
-const VIRTUAL_DEVICE = "virtual_device";
-const DAY_MILLIS = 24 * 60 * 60 * 1000;
+type ProgressFn = (percent: number, current: number, total: number) => void
+const VIRTUAL_DEVICE = 'virtual_device'
+const DAY_MILLIS = 24 * 60 * 60 * 1000
 
 async function fetchDeviceConfig(deviceId: string): Promise<DeviceConfig> {
   const response = await fetch(
     `/api/env/${deviceId}?register=${deviceId === VIRTUAL_DEVICE}`
-  );
+  )
   if (response.status >= 300) {
-    const text = await response.text();
-    throw new Error(`${response.status} ${text}`);
+    const text = await response.text()
+    throw new Error(`${response.status} ${text}`)
   }
-  const deviceConfig: DeviceConfig = await response.json();
+  const deviceConfig: DeviceConfig = await response.json()
   if (!deviceConfig.influx_token) {
-    throw new Error(`Device '${deviceId}' is not authorized!`);
+    throw new Error(`Device '${deviceId}' is not authorized!`)
   }
-  return deviceConfig;
+  return deviceConfig
 }
 
 async function fetchDeviceData(config: DeviceConfig): Promise<DeviceData> {
@@ -58,9 +54,9 @@ async function fetchDeviceData(config: DeviceConfig): Promise<DeviceData> {
     influx_org: org,
     influx_bucket: bucket,
     id,
-  } = config;
-  const influxDB = new InfluxDB({ url: "/influx", token });
-  const queryApi = influxDB.getQueryApi(org);
+  } = config
+  const influxDB = new InfluxDB({url: '/influx', token})
+  const queryApi = influxDB.getQueryApi(org)
   const results = await queryApi.collectRows<any>(flux`
 from(bucket: ${bucket})
   |> range(start: -30d)
@@ -76,12 +72,12 @@ from(bucket: ${bucket})
           count: accumulator.count + 1.0
         }),
         identity: {maxTime: 1970-01-01, count: 0.0, minValue: 10000.0, maxValue: -10000.0}
-    )`);
+    )`)
   if (results.length > 0) {
-    const { maxTime, minValue, maxValue, count } = results[0];
-    return { config, maxTime, minValue, maxValue, count };
+    const {maxTime, minValue, maxValue, count} = results[0]
+    return {config, maxTime, minValue, maxValue, count}
   }
-  return { config };
+  return {config}
 }
 
 async function fetchDeviceMeasurements(
@@ -93,8 +89,8 @@ async function fetchDeviceMeasurements(
     influx_org: org,
     influx_bucket: bucket,
     id,
-  } = config;
-  const queryApi = new InfluxDB({ url: "/influx", token }).getQueryApi(org);
+  } = config
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
   const result = await queryTable(
     queryApi,
     flux`
@@ -104,10 +100,10 @@ async function fetchDeviceMeasurements(
     |> filter(fn: (r) => r.clientId == ${id})
     |> filter(fn: (r) => r._field == "Temperature")`,
     {
-      columns: ["_time", "_value"],
+      columns: ['_time', '_value'],
     }
-  );
-  return result;
+  )
+  return result
 }
 
 async function writeEmulatedData(
@@ -120,149 +116,155 @@ async function writeEmulatedData(
     influx_org: org,
     influx_bucket: bucket,
     id,
-  } = state.config;
+  } = state.config
   // calculate window to emulate writes
-  const toTime = Math.trunc(Date.now() / 60_000) * 60_000;
+  const toTime = Math.trunc(Date.now() / 60_000) * 60_000
   let lastTime = state.maxTime
     ? Math.trunc(Date.parse(state.maxTime) / 60_000) * 60_000
-    : 0;
+    : 0
   if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
-    lastTime = toTime - 30 * 24 * 60 * 60 * 1000;
+    lastTime = toTime - 30 * 24 * 60 * 60 * 1000
   }
-  const totalPoints = Math.trunc((toTime - lastTime) / 60_000);
-  let pointsWritten = 0;
+  const totalPoints = Math.trunc((toTime - lastTime) / 60_000)
+  let pointsWritten = 0
   if (totalPoints > 0) {
-    const batchSize = 2000;
-    const influxDB = new InfluxDB({ url: "/influx", token });
-    const writeApi = influxDB.getWriteApi(org, bucket, "ms", {
+    const batchSize = 2000
+    const influxDB = new InfluxDB({url: '/influx', token})
+    const writeApi = influxDB.getWriteApi(org, bucket, 'ms', {
       batchSize: batchSize + 1,
-      defaultTags: { clientId: id },
-    });
+      defaultTags: {clientId: id},
+    })
     try {
       // write random temperatures
-      const point = new Point("air"); // reuse the same point to spare memory
-      onProgress(0, 0, totalPoints);
+      const point = new Point('air') // reuse the same point to spare memory
+      onProgress(0, 0, totalPoints)
       while (lastTime < toTime) {
-        lastTime += 60_000; // emulate next minute
+        lastTime += 60_000 // emulate next minute
         // calculate temperature as a predictable continuous functionto look better
         let dateTemperature =
           10 +
-          10 * Math.sin((((lastTime / DAY_MILLIS) % 30) / 30) * 2 * Math.PI);
+          10 * Math.sin((((lastTime / DAY_MILLIS) % 30) / 30) * 2 * Math.PI)
         // it is much warmer around lunch time
         dateTemperature +=
           10 +
           10 *
             Math.sin(
               ((lastTime % DAY_MILLIS) / DAY_MILLIS) * 2 * Math.PI - Math.PI / 2
-            );
+            )
         point
           .floatField(
-            "Temperature",
+            'Temperature',
             Math.trunc((dateTemperature + Math.random()) * 10) / 10
           )
-          .timestamp(lastTime);
-        writeApi.writePoint(point);
+          .timestamp(lastTime)
+        writeApi.writePoint(point)
 
-        pointsWritten++;
+        pointsWritten++
         if (pointsWritten % batchSize === 0) {
-          await writeApi.flush();
+          await writeApi.flush()
           onProgress(
             (pointsWritten / totalPoints) * 100,
             pointsWritten,
             totalPoints
-          );
+          )
         }
       }
-      await writeApi.flush();
+      await writeApi.flush()
     } finally {
-      await writeApi.close();
+      await writeApi.close()
     }
-    onProgress(100, pointsWritten, totalPoints);
+    onProgress(100, pointsWritten, totalPoints)
   }
 
-  return pointsWritten;
+  return pointsWritten
 }
 
 interface Props {
-  deviceId?: string;
+  deviceId?: string
 }
 
-function DevicePage({ match, location }: RouteComponentProps<Props>) {
-  const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE;
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState<Message | undefined>();
-  const [deviceData, setDeviceData] = useState<DeviceData | undefined>();
-  const [dataStamp, setDataStamp] = useState(0);
-  const [progress, setProgress] = useState(-1);
+const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
+  match,
+  location,
+}) => {
+  const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<Message | undefined>()
+  const [deviceData, setDeviceData] = useState<DeviceData | undefined>()
+  const [dataStamp, setDataStamp] = useState(0)
+  const [progress, setProgress] = useState(-1)
   const writeAllowed =
     deviceId === VIRTUAL_DEVICE ||
-    new URLSearchParams(location.search).get("write") === "true";
+    new URLSearchParams(location.search).get('write') === 'true'
 
   // fetch device configuration and data
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      setLoading(true)
       try {
-        const deviceConfig = await fetchDeviceConfig(deviceId);
+        const deviceConfig = await fetchDeviceConfig(deviceId)
         const [deviceData, table] = await Promise.all([
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig),
-        ]);
-        deviceData.measurementsTable = table;
-        setDeviceData(deviceData);
+        ])
+        deviceData.measurementsTable = table
+        setDeviceData(deviceData)
       } catch (e) {
-        console.error(e);
+        console.error(e)
         setMessage({
-          title: "Cannot load device data",
+          title: 'Cannot load device data',
           description: String(e),
-          type: "error",
-        });
+          type: 'error',
+        })
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchData();
-  }, [dataStamp, deviceId]);
+    fetchData()
+  }, [dataStamp, deviceId])
 
   async function writeData() {
-    const onProgress: ProgressFn = (percent, current, total) => {
+    const onProgress: ProgressFn = (percent /*, current, total */) => {
       // console.log(
       //   `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
       // );
-      setProgress(percent);
-    };
+      setProgress(percent)
+    }
     try {
-      const count = await writeEmulatedData(deviceData as DeviceData, onProgress);
+      const count = await writeEmulatedData(
+        deviceData as DeviceData,
+        onProgress
+      )
       if (count) {
         antdMessage.success(
           <>
-            <b>{count}</b> measurement point{count > 1 ? "s were" : " was"}{" "}
+            <b>{count}</b> measurement point{count > 1 ? 's were' : ' was'}{' '}
             written to InfluxDB.
           </>
-        );
-        setDataStamp(dataStamp + 1); // reload device data
+        )
+        setDataStamp(dataStamp + 1) // reload device data
       } else {
         antdMessage.info(
           `No new data were written to InfluxDB, the current measurement is already written.`
-        );
+        )
       }
     } catch (e) {
-      console.error(e);
+      console.error(e)
       setMessage({
-        title: "Cannot write data",
+        title: 'Cannot write data',
         description: String(e),
-        type: "error",
-      });
+        type: 'error',
+      })
     } finally {
-      setProgress(-1);
+      setProgress(-1)
     }
   }
 
   return (
     <PageContent
       title={
-        deviceId === VIRTUAL_DEVICE ? "Virtual Device" : `Device ${deviceId}`
+        deviceId === VIRTUAL_DEVICE ? 'Virtual Device' : `Device ${deviceId}`
       }
       message={message}
       spin={loading}
@@ -290,7 +292,7 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
           {deviceData?.config.influx_bucket}
         </Descriptions.Item>
         <Descriptions.Item label="InfluxDB Token">
-          {deviceData?.config.influx_token ? "***" : "N/A"}
+          {deviceData?.config.influx_token ? '***' : 'N/A'}
         </Descriptions.Item>
       </Descriptions>
       <Descriptions title="Device Measurements (last 30 days)">
@@ -310,22 +312,22 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
         </Descriptions.Item>
       </Descriptions>
       {deviceData?.measurementsTable?.length ? (
-        <div style={{ width: "100%", height: 300 }}>
+        <div style={{width: '100%', height: 300}}>
           <Plot
             config={{
               layers: [
                 {
-                  type: "line",
-                  x: "_time",
-                  y: "_value",
-                  interpolation: "natural",
+                  type: 'line',
+                  x: '_time',
+                  y: '_value',
+                  interpolation: 'natural',
                 },
               ],
               table: deviceData.measurementsTable,
               valueFormatters: {
                 _time: timeFormatter({
-                  timeZone: "UTC",
-                  format: "YYYY-MM-DD HH:mm:ss ZZ",
+                  timeZone: 'UTC',
+                  format: 'YYYY-MM-DD HH:mm:ss ZZ',
                 }),
               },
             }}
@@ -335,7 +337,7 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
       {writeAllowed ? (
         <>
           <br />
-          <div style={{ visibility: progress >= 0 ? "visible" : "hidden" }}>
+          <div style={{visibility: progress >= 0 ? 'visible' : 'hidden'}}>
             <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
           </div>
           <Tooltip title="Write Missing Data for the last 30 days">
@@ -343,7 +345,7 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
               <Button
                 onClick={writeData}
                 disabled={progress !== -1}
-                style={{ marginRight: "8px" }}
+                style={{marginRight: '8px'}}
               >
                 Write New Data
               </Button>
@@ -354,13 +356,13 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
       <Tooltip title="Reload Device Data">
         <Button
           onClick={() => setDataStamp(dataStamp + 1)}
-          style={{ marginRight: "8px" }}
+          style={{marginRight: '8px'}}
         >
           Reload
         </Button>
       </Tooltip>
     </PageContent>
-  );
+  )
 }
 
-export default DevicePage;
+export default DevicePage
