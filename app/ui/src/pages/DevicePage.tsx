@@ -66,7 +66,7 @@ from(bucket: ${bucket})
   |> range(start: -30d)
   |> filter(fn: (r) => r._measurement == "air")
   |> filter(fn: (r) => r.clientId == ${id})
-  |> filter(fn: (r) => r._field == "temperature")
+  |> filter(fn: (r) => r._field == "Temperature")
   |> group()
   |> reduce(
         fn: (r, accumulator) => ({
@@ -102,7 +102,7 @@ async function fetchDeviceMeasurements(
     |> range(start: -30d)
     |> filter(fn: (r) => r._measurement == "air")
     |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "temperature")`,
+    |> filter(fn: (r) => r._field == "Temperature")`,
     {
       columns: ["_time", "_value"],
     }
@@ -157,7 +157,7 @@ async function writeEmulatedData(
             );
         point
           .floatField(
-            "temperature",
+            "Temperature",
             Math.trunc((dateTemperature + Math.random()) * 10) / 10
           )
           .timestamp(lastTime);
