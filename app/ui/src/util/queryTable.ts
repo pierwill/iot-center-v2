@@ -21,14 +21,19 @@ interface ColumnStore {
   toValue: (row: string[]) => number | string | boolean;
   /** marker to indicate that this column can have multiple keys  */
   multipleTypes?: true;
+  /** it this column part of the group key */
+  group?: boolean;
 }
 
-function removeMultiTypeColumns(
-  columns: Record<string, ColumnStore>
+function toTableColumns(
+  columns: Record<string, ColumnStore>,
+  tableLength: number
 ): Record<string, ColumnStore> {
   return Object.keys(columns).reduce((acc, val) => {
-    if (!columns[val].multipleTypes) {
-      acc[val] = columns[val];
+    const col = columns[val]
+    if (!col.multipleTypes) {
+      acc[val] = col;
+      ((col.data) as any).length = tableLength // extend the array length, required by test
     }
     return acc;
   }, {} as Record<string, ColumnStore>);
@@ -121,6 +126,7 @@ export async function queryTable(
               name: metaCol.label,
               type,
               data: existingColumn ? existingColumn.data : [],
+              group: metaCol.group,
               toValue: toValueFn(metaCol.index, type, metaCol.defaultValue),
             };
 
@@ -140,11 +146,11 @@ export async function queryTable(
         tableSize++;
       },
       complete() {
-        resolve(new SimpleTable(tableSize, removeMultiTypeColumns(columns)));
+        resolve(new SimpleTable(tableSize, toTableColumns(columns, tableSize)));
       },
       error(e: Error) {
         if (e?.name === "AbortError") {
-          resolve(new SimpleTable(tableSize, removeMultiTypeColumns(columns)));
+          resolve(new SimpleTable(tableSize, toTableColumns(columns, tableSize)));
         }
         reject(e);
       },
@@ -189,8 +195,10 @@ function toValueFn(
       return (row: string[]) =>
         (row[rowIndex] === "" ? def : row[rowIndex]) === "true";
     case "number":
-      return (row: string[]) =>
-        Number(row[rowIndex] === "" ? def : row[rowIndex]);
+      return (row: string[]) => {
+        const val = row[rowIndex] === "" ? def : row[rowIndex];
+        return val === "" ? (null as any ) as number : Number(val); // TODO wrong API reference
+      };
     case "time":
       return (row: string[]) =>
         Date.parse(row[rowIndex] === "" ? def : row[rowIndex]);
@@ -274,7 +282,7 @@ class SimpleTable implements Table {
     const column = this.columns[columnKey];
 
     if (!column) {
-      return ""; // TODO wrong API interface in giraffe
+      return (null as any) as string; // TODO wrong API interface in giraffe
     }
 
     return column.name;
@@ -284,7 +292,7 @@ class SimpleTable implements Table {
     const column = this.columns[columnKey];
 
     if (!column) {
-      return "string"; // TODO wrong API interface in giraffe
+      return (null as any) as ColumnType; // TODO wrong API interface in giraffe
     }
 
     return column.type;

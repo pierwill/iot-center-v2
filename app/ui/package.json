@@ -43,7 +43,8 @@
     ]
   },
   "devDependencies": {
-    "@types/react-router-dom": "^5.1.5"
+    "@types/react-router-dom": "^5.1.5",
+    "nock": "^13.0.4"
   },
   "proxy": "http://localhost:5000"
 }
