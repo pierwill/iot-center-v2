@@ -12,6 +12,12 @@ import {RouteComponentProps} from 'react-router-dom'
 import PageContent, {Message} from './PageContent'
 import {Plot, timeFormatter, Table as GiraffeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
+import {
+  generateTemperature,
+  generateHumidity,
+  generatePressure,
+  generateCO2,
+} from '../util/generateValue'
 
 interface DeviceConfig {
   influx_url: string
@@ -19,6 +25,8 @@ interface DeviceConfig {
   influx_token: string
   influx_bucket: string
   id: string
+  default_lat?: number
+  default_lon?: number
 }
 interface DeviceData {
   config: DeviceConfig
@@ -30,7 +38,6 @@ interface DeviceData {
 }
 type ProgressFn = (percent: number, current: number, total: number) => void
 const VIRTUAL_DEVICE = 'virtual_device'
-const DAY_MILLIS = 24 * 60 * 60 * 1000
 
 async function fetchDeviceConfig(deviceId: string): Promise<DeviceConfig> {
   const response = await fetch(
@@ -60,7 +67,7 @@ async function fetchDeviceData(config: DeviceConfig): Promise<DeviceData> {
   const results = await queryApi.collectRows<any>(flux`
 from(bucket: ${bucket})
   |> range(start: -30d)
-  |> filter(fn: (r) => r._measurement == "air")
+  |> filter(fn: (r) => r._measurement == "environment")
   |> filter(fn: (r) => r.clientId == ${id})
   |> filter(fn: (r) => r._field == "Temperature")
   |> group()
@@ -94,13 +101,16 @@ async function fetchDeviceMeasurements(
   const result = await queryTable(
     queryApi,
     flux`
+  import "influxdata/influxdb/v1"    
   from(bucket: ${bucket})
     |> range(start: -30d)
-    |> filter(fn: (r) => r._measurement == "air")
+    |> filter(fn: (r) => r._measurement == "environment")
     |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "Temperature")`,
+    |> filter(fn: (r) => r._field == "Temperature")
+    |> v1.fieldsAsCols()
+    |> keep(columns: ["_time", "Temperature"])`,
     {
-      columns: ['_time', '_value'],
+      columns: ['_time', 'Temperature'],
     }
   )
   return result
@@ -136,26 +146,17 @@ async function writeEmulatedData(
     })
     try {
       // write random temperatures
-      const point = new Point('air') // reuse the same point to spare memory
+      const point = new Point('environment') // reuse the same point to spare memory
       onProgress(0, 0, totalPoints)
       while (lastTime < toTime) {
         lastTime += 60_000 // emulate next minute
-        // calculate temperature as a predictable continuous functionto look better
-        let dateTemperature =
-          10 +
-          10 * Math.sin((((lastTime / DAY_MILLIS) % 30) / 30) * 2 * Math.PI)
-        // it is much warmer around lunch time
-        dateTemperature +=
-          10 +
-          10 *
-            Math.sin(
-              ((lastTime % DAY_MILLIS) / DAY_MILLIS) * 2 * Math.PI - Math.PI / 2
-            )
         point
-          .floatField(
-            'Temperature',
-            Math.trunc((dateTemperature + Math.random()) * 10) / 10
-          )
+          .floatField('Temperature', generateTemperature(lastTime))
+          .floatField('Humidity', generateHumidity(lastTime))
+          .floatField('Pressure', generatePressure(lastTime))
+          .intField('CO2', generateCO2(lastTime))
+          .floatField('Lat', state.config.default_lat || 50.0873254)
+          .floatField('Lon', state.config.default_lon || 14.4071543)
           .timestamp(lastTime)
         writeApi.writePoint(point)
 
@@ -319,7 +320,7 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
                 {
                   type: 'line',
                   x: '_time',
-                  y: '_value',
+                  y: 'Temperature',
                   interpolation: 'natural',
                 },
               ],
