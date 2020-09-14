@@ -1,0 +1,41 @@
+version: 2.1
+
+commands:
+  init-app-dependencies:
+    steps:
+      - restore_cache:
+          name: Restore Yarn Package Cache
+          keys:
+            - yarn-packages-{{ checksum "app/yarn.lock" }}
+      - run:
+          name: Install Dependencies
+          command: |
+            cd app
+            yarn install --frozen-lockfile
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "app/yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+
+jobs:
+  tests:
+    parameters:
+      version:
+        type: string
+    docker:
+      - image: circleci/node:<< parameters.version >>
+    steps:
+      - checkout
+      - init-app-dependencies
+      - run:
+          name: Run tests
+          command: |
+            cd app
+            yarn test
+            yarn build
+workflows:
+  build:
+    jobs:
+      - tests:
+          version: '12'
