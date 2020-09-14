@@ -30,7 +30,6 @@ describe('queryTable', () => {
 
     nock(url).post(/.*/).reply(200, CSV)
     const table = await queryTable(queryApi, 'ignored')
-    console.log(table)
 
     expect(table.getColumn('result', 'string')).toEqual([
       '_result',
