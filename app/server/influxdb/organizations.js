@@ -21,15 +21,13 @@ async function getOrganization(name) {
     // do a deep copy
     return JSON.parse(JSON.stringify(cached))
   }
-
-  return orgsApi.getOrgs({org: name}).then((response) => {
-    if (!response.orgs || response.orgs.length === 0) {
-      throw new Error(`No organization named ${name} found!`)
-    }
-    const retVal = response.orgs[0]
-    orgCache[name] = retVal
-    return response.orgs[0]
-  })
+  const apiResponse = await orgsApi.getOrgs({org: name})
+  if (!apiResponse.orgs || apiResponse.orgs.length === 0) {
+    throw new Error(`No organization named ${name} found!`)
+  }
+  const retVal = apiResponse.orgs[0]
+  orgCache[name] = retVal
+  return apiResponse.orgs[0]
 }
 
 module.exports = {getOrganization}

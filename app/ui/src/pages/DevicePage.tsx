@@ -107,7 +107,7 @@ async function fetchDeviceMeasurements(
       columns: ["_time", "_value"],
     }
   );
-  return result
+  return result;
 }
 
 async function writeEmulatedData(
@@ -225,38 +225,38 @@ function DevicePage({ match, location }: RouteComponentProps<Props>) {
     fetchData();
   }, [dataStamp, deviceId]);
 
-  function writeData() {
+  async function writeData() {
     const onProgress: ProgressFn = (percent, current, total) => {
       // console.log(
       //   `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
       // );
       setProgress(percent);
     };
-    writeEmulatedData(deviceData as DeviceData, onProgress)
-      .then((count) => {
-        if (count) {
-          antdMessage.success(
-            <>
-              <b>{count}</b> measurement point{count > 1 ? "s were" : " was"}{" "}
-              written to InfluxDB.
-            </>
-          );
-          setDataStamp(dataStamp + 1); // reload device data
-        } else {
-          antdMessage.info(
-            `No new data were written to InfluxDB, the current measurement is already written.`
-          );
-        }
-      })
-      .catch((e) => {
-        console.error(e);
-        setMessage({
-          title: "Cannot write data",
-          description: String(e),
-          type: "error",
-        });
-      })
-      .finally(() => setProgress(-1));
+    try {
+      const count = await writeEmulatedData(deviceData as DeviceData, onProgress);
+      if (count) {
+        antdMessage.success(
+          <>
+            <b>{count}</b> measurement point{count > 1 ? "s were" : " was"}{" "}
+            written to InfluxDB.
+          </>
+        );
+        setDataStamp(dataStamp + 1); // reload device data
+      } else {
+        antdMessage.info(
+          `No new data were written to InfluxDB, the current measurement is already written.`
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      setMessage({
+        title: "Cannot write data",
+        description: String(e),
+        type: "error",
+      });
+    } finally {
+      setProgress(-1);
+    }
   }
 
   return (
