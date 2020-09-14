@@ -1,5 +1,6 @@
 const express = require('express')
 const env = require('../env')
+const {stringify} = require('yaml')
 const {
   getIoTAuthorization,
   createIoTAuthorization,
@@ -22,19 +23,14 @@ function handleError(wrapped) {
 router.use(function responseTextInPlaceOfJson(req, res, next) {
   if (
     req.header('accept') === 'text/plain' ||
-    req.param('accept') === 'text/plain'
+    req.query.accept === 'text/plain'
   ) {
     const oldJson = res.json
 
     res.json = function (...args) {
       const [body] = args
       if (typeof body === 'object' && body !== null) {
-        res.send(
-          Object.keys(body).reduce(
-            (acc, key) => acc + `${key}=${body[key]}\n`,
-            ''
-          )
-        )
+        res.send(stringify(body))
       } else {
         oldJson.apply(res, args)
       }
