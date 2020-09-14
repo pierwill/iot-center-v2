@@ -1,6 +1,6 @@
 # IoT Center v2 - Arduino Client
 
-ToDo 
+ESP8266 and ESP32 devices supported
 
 ## Quick Start
 
