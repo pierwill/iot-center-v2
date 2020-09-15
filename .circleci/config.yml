@@ -33,7 +33,7 @@ jobs:
           command: |
             cd app/ui
             yarn test
-            yarn build
+            # yarn build // remove, it takes too much time
       - run:
           name: Run app/server tests
           command: |
