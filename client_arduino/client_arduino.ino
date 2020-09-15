@@ -72,12 +72,24 @@ configuration_refresh: 3600
   }
   http.end();
 
+  //Parse response
   if ( payload.length() > 0) {
-    int i = payload.indexOf("influx_token");
+    int i = payload.indexOf("influx_url");
     String influxdbURL = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-    Serial.println( influxdbURL);
+    influxdbURL = "http://192.168.57.104:9999";
+    Serial.println("'"+influxdbURL+"'");
+
+    i = payload.indexOf("influx_org");
+    String influxdbOrg = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+
+    i = payload.indexOf("influx_token");
+    String influxdbToken = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+    
+    i = payload.indexOf("influx_bucket");
+    String influxdbBucket = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+    
     // Set InfluxDB parameters
-    //client.setConnectionParams(INFLUXDB_URL, INFLUXDB_ORG, INFLUXDB_BUCKET, INFLUXDB_TOKEN, InfluxDbCloud2CACert);
+    client.setConnectionParams(influxdbURL.c_str(), influxdbOrg.c_str(), influxdbBucket.c_str(), influxdbToken.c_str(), InfluxDbCloud2CACert);
 
     // Check server connection
     if (client.validateConnection()) {
@@ -87,6 +99,12 @@ configuration_refresh: 3600
       Serial.print("InfluxDB connection failed: ");
       Serial.println(client.getLastErrorMessage());
     }
+    i = payload.indexOf("serverTime");
+    String influxdbTime = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+    i = payload.indexOf("measurement_interval");
+    String influxdbInt = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+    i = payload.indexOf("configuration_refresh");
+    String influxdbRefr = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
   
     //Enable messages batching and retry buffer
     client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
@@ -143,7 +161,7 @@ void loop() {
   Serial.println(envData.toLineProtocol());
 
   // Write point into buffer - high priority measure
-  client.writePoint(envData);
+  //client.writePoint(envData);
 
   // Clear fields for next usage. Tags remain the same.
   envData.clearFields();
