@@ -18,7 +18,7 @@ interface ColumnStore {
   /** column data */
   data: ColumnData
   /** converts string to column value */
-  toValue: (row: string[]) => number | string | boolean
+  toValue: (row: string[]) => number | string | boolean | null
   /** marker to indicate that this column can have multiple keys  */
   multipleTypes?: true
   /** it this column part of the group key */
@@ -139,7 +139,10 @@ export async function queryTable(
         }
         for (let i = 0; i < dataColumns.length; i++) {
           const column = dataColumns[i]
-          column.data[tableSize] = column.toValue(row)
+          column.data[tableSize] = column.toValue(row) as
+            | string
+            | number
+            | boolean // TODO wrong type definition in giraffe
         }
         tableSize++
       },
@@ -188,7 +191,7 @@ function toValueFn(
   rowIndex: number,
   type: ColumnType,
   def: string
-): (row: string[]) => number | string | boolean {
+): (row: string[]) => number | string | boolean | null {
   // from: 'boolean' | 'unsignedLong' | 'long' | 'double' | 'string' | 'base64Binary' | 'dateTime:RFC3339' | 'duration'
   switch (type) {
     case 'boolean':
@@ -197,7 +200,7 @@ function toValueFn(
     case 'number':
       return (row: string[]) => {
         const val = row[rowIndex] === '' ? def : row[rowIndex]
-        return val === '' ? ((null as any) as number) : Number(val) // TODO wrong API reference
+        return val === '' ? null : Number(val)
       }
     case 'time':
       return (row: string[]) =>
