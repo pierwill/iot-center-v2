@@ -40,13 +40,40 @@ function toTableColumns(
 }
 
 /**
+ * AcceptRowFunction allows to accept/reject specific rows or terminate processing.
+ * @param row CSV data row
+ * @param tableMeta CSV table metadata including column definition
+ * @return true to accept row, false to skip row, undefined means stop processing
+ **/
+export type AcceptRowFunction = (
+  row: string[],
+  tableMeta: FluxTableMetaData
+) => true | false | undefined
+
+/**
  * Contains parameters that optimize/drive creation of the query result Table.
  */
 export interface TableOptions {
-  /** max size of the result table */
-  maxTableSize?: number
-  /** column keys to collect, undefined means all columns */
+  /**
+   * Accept allows to accept/reject specific rows or terminate processing.
+   **/
+  accept?: AcceptRowFunction
+  /** column keys to collect in the table, undefined means all columns */
   columns?: string[]
+}
+
+/**
+ * Create an accept function that stops processing
+ * after the specified count of rows is processed.
+ * @param size maximum processed rows
+ */
+export function maxTableSize(max: number): AcceptRowFunction {
+  let size = 0
+  return () => {
+    if (size >= max) return undefined // stop processing
+    size++
+    return true
+  }
 }
 
 /** QUERY_OPTIMIZED=false changes the queryTable function to simply use queryRawTable */
@@ -67,7 +94,7 @@ export async function queryTable(
   query: string | ParameterizedQuery,
   tableOptions: TableOptions = {}
 ): Promise<Table> {
-  const {maxTableSize, columns: onlyColumns} = tableOptions
+  const {accept = () => true, columns: onlyColumns} = tableOptions
   const startTime = Date.now()
   const timeSpentInThisFunction = DEBUG_queryTable
     ? () => {
@@ -85,6 +112,14 @@ export async function queryTable(
   return new Promise<Table>((resolve, reject) => {
     queryApi.queryRows(query, {
       next(row: string[], tableMeta: FluxTableMetaData) {
+        switch (accept(row, tableMeta)) {
+          case true:
+            break
+          case false:
+            return
+          default:
+            cancellable.cancel()
+        }
         if (tableMeta !== lastTableMeta) {
           dataColumns = []
           for (const metaCol of tableMeta.columns) {
@@ -132,10 +167,6 @@ export async function queryTable(
             columns[columnKey] = column
           }
           lastTableMeta = tableMeta
-        }
-        if (maxTableSize !== undefined && maxTableSize <= tableSize) {
-          cancellable.cancel()
-          return
         }
         for (let i = 0; i < dataColumns.length; i++) {
           const column = dataColumns[i]
