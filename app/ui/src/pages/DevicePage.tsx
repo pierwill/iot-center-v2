@@ -17,6 +17,7 @@ import {
   generateHumidity,
   generatePressure,
   generateCO2,
+  generateTVOC,
 } from '../util/generateValue'
 
 interface DeviceConfig {
@@ -155,6 +156,7 @@ async function writeEmulatedData(
           .floatField('Humidity', generateHumidity(lastTime))
           .floatField('Pressure', generatePressure(lastTime))
           .intField('CO2', generateCO2(lastTime))
+          .intField('TVOC', generateTVOC(lastTime))
           .floatField('Lat', state.config.default_lat || 50.0873254)
           .floatField('Lon', state.config.default_lon || 14.4071543)
           .timestamp(lastTime)

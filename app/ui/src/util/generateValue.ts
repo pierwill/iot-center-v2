@@ -32,4 +32,5 @@ function generateValue(
 export const generateTemperature = generateValue.bind(undefined, 30, 0, 40)
 export const generateHumidity = generateValue.bind(undefined, 90, 0, 99)
 export const generatePressure = generateValue.bind(undefined, 20, 970, 1050)
-export const generateCO2 = generateValue.bind(undefined, 1, 250, 2000)
+export const generateCO2 = generateValue.bind(undefined, 1, 400, 3000)
+export const generateTVOC = generateValue.bind(undefined, 1, 250, 2000)
