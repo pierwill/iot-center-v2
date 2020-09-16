@@ -15,12 +15,15 @@ import {
   BugOutlined,
   DoubleRightOutlined,
   FastForwardOutlined,
+  AreaChartOutlined,
 } from '@ant-design/icons'
 
 import HomePage from './pages/HomePage'
 import DevicesPage from './pages/DevicesPage'
 import DevicePage from './pages/DevicePage'
 import NotFoundPage from './pages/NotFoundPage'
+import DashboardPage from './pages/DashboardPage'
+import {VIRTUAL_DEVICE} from './util/communication'
 
 const {Sider} = Layout
 const PAGE_HELP: Record<string, {file: string}> = {
@@ -93,6 +96,9 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             >
               <NavLink to="/devices/virtual_device">Virtual Device</NavLink>
             </Menu.Item>
+            <Menu.Item key="/dashboard" icon={<AreaChartOutlined />}>
+              <NavLink to="/dashboard">Dashboard</NavLink>
+            </Menu.Item>
             <Menu.Item key="/todo" icon={<BugOutlined />}>
               <NavLink to="/todo">ToDo</NavLink>
             </Menu.Item>
@@ -104,6 +110,12 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
           <Route exact path="/home" component={HomePage} />
           <Route exact path="/devices" component={DevicesPage} />
           <Route exact path="/devices/:deviceId" component={DevicePage} />
+          <Redirect
+            exact
+            from="/dashboard"
+            to={`/dashboard/${VIRTUAL_DEVICE}`}
+          />
+          <Route exact path="/dashboard/:deviceId" component={DashboardPage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
         {helpText ? (

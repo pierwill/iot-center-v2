@@ -9,6 +9,7 @@ export interface Message {
 
 export interface PageContentProps {
   title: ReactNode
+  titleExtra?: ReactNode
   children: ReactNode
   spin?: boolean
   message?: Message
@@ -37,6 +38,7 @@ const PageContent: FunctionComponent<PageContentProps> = (props) => {
       <PageHeader
         title={props.title}
         style={{paddingLeft: 0, paddingRight: 0}}
+        extra={props?.titleExtra}
       />
       {props.message ? (
         <Alert

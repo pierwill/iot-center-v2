@@ -13,7 +13,7 @@ import {
 import {Link} from 'react-router-dom'
 import {ColumnsType} from 'antd/lib/table'
 
-interface DeviceInfo {
+export interface DeviceInfo {
   key: string
   deviceId: string
   createdAt: string
