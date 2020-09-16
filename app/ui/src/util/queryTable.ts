@@ -4,8 +4,10 @@ import {
   FluxTableMetaData,
   ColumnType as ClientColumnType,
   Cancellable,
+  FluxResultObserver,
 } from '@influxdata/influxdb-client'
-import {Table, ColumnType, ColumnData, fromFlux} from '@influxdata/giraffe'
+import {Table, ColumnType, ColumnData} from '@influxdata/giraffe'
+import {newTable} from './newTable'
 
 /**
  * Stores data and metadata of a result column.
@@ -33,7 +35,7 @@ function toTableColumns(
     const col = columns[val]
     if (!col.multipleTypes) {
       acc[val] = col
-      ;(col.data as any).length = tableLength // extend the array length, required by test
+      ;(col.data as any).length = tableLength // extend the array length, required (and tested)
     }
     return acc
   }, {} as Record<string, ColumnStore>)
@@ -57,157 +59,197 @@ export interface TableOptions {
   /**
    * Accept allows to accept/reject specific rows or terminate processing.
    **/
-  accept?: AcceptRowFunction
+  accept?: AcceptRowFunction | AcceptRowFunction[]
+  /**
+   * Sets maximum table length, QUERY_MAX_TABLE_LENGTH when undefined.
+   */
+  maxTableLength?: number
+
   /** column keys to collect in the table, undefined means all columns */
   columns?: string[]
 }
 
 /**
+ * DEFAULT_TABLE_OPTIONS allows to setup default maxTableLength.
+ */
+export const DEFAULT_TABLE_OPTIONS: Pick<TableOptions, 'maxTableLength'> = {
+  maxTableLength: 100_000,
+}
+
+/**
  * Create an accept function that stops processing
- * after the specified count of rows is processed.
+ * if the table reaches the specified max rows.
  * @param size maximum processed rows
  */
-export function maxTableSize(max: number): AcceptRowFunction {
+export function acceptMaxTableLength(max: number): AcceptRowFunction {
   let size = 0
   return () => {
-    if (size >= max) return undefined // stop processing
+    if (size >= max) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `queryTable: max table length ${max} reached, processing stopped`
+      )
+      return undefined
+    }
     size++
     return true
   }
 }
 
-/** QUERY_OPTIMIZED=false changes the queryTable function to simply use queryRawTable */
-export let QUERY_OPTIMIZED = true // eslint-disable-line prefer-const
-/** prints out query and its processing time  */
-export let DEBUG_queryTable = false // eslint-disable-line prefer-const
+/**
+ * Creates one accept function for the TableOptions supplied.
+ * @param options table options
+ * @returns accept function
+ */
+function createAcceptRowFunction(options: TableOptions): AcceptRowFunction {
+  const maxTableLength =
+    options.maxTableLength === undefined
+      ? DEFAULT_TABLE_OPTIONS.maxTableLength
+      : options.maxTableLength
+  const acceptors: AcceptRowFunction[] = []
+  if (options.accept) {
+    if (Array.isArray(options.accept)) {
+      acceptors.push(...options.accept)
+    } else {
+      acceptors.push(options.accept)
+    }
+  }
+  if (maxTableLength !== undefined) {
+    acceptors.push(acceptMaxTableLength(maxTableLength))
+  }
+
+  return (row: string[], tableMeta: FluxTableMetaData) => {
+    for (let i = 0; i < acceptors.length; i++) {
+      const retVal = acceptors[i](row, tableMeta)
+      if (retVal === undefined || retVal === false) {
+        return retVal
+      }
+    }
+    return true
+  }
+}
+
+/**
+ * Creates influxdb-client-js's FluxResultObserver that collects row results to a Table instance
+ * @param resolve called when the Table is collected
+ * @param reject called upon error
+ * @param tableOptions tableOptions allow to filter or even stop the processing of rows, or restrict the columns to collect
+ * @return FluxResultObserver that collects rows to a table instance
+ */
+export function createFluxResultObserver(
+  resolve: (value: Table) => void,
+  reject: (reason?: any) => void,
+  tableOptions: TableOptions = {}
+): FluxResultObserver<string[]> {
+  const {columns: onlyColumns} = tableOptions
+  const accept = createAcceptRowFunction(tableOptions)
+  const columns: Record<string, ColumnStore> = {}
+  let dataColumns: ColumnStore[]
+  let lastTableMeta: FluxTableMetaData | undefined = undefined
+  let tableSize = 0
+  let cancellable: Cancellable
+  return {
+    next(row: string[], tableMeta: FluxTableMetaData) {
+      switch (accept(row, tableMeta)) {
+        case true:
+          break
+        case false:
+          return
+        default:
+          cancellable.cancel()
+          return
+      }
+      if (tableMeta !== lastTableMeta) {
+        dataColumns = []
+        for (const metaCol of tableMeta.columns) {
+          const type = toGiraffeColumnType(metaCol.dataType)
+          if (onlyColumns && !onlyColumns.includes(metaCol.label)) {
+            continue // exclude this column
+          }
+
+          // handle the rare situation of having columns with the same name, but different type
+          let columnKey = metaCol.label
+          let existingColumn = columns[columnKey]
+          if (existingColumn) {
+            if (existingColumn.multipleTypes) {
+              // multiple column types of the same name already found
+              // use type-specific column key
+              columnKey = `${metaCol.label} (${type})`
+              existingColumn = columns[columnKey]
+            } else if (existingColumn.type !== type) {
+              // move the existing key to a type-specific key
+              columns[
+                `${existingColumn.name} (${existingColumn.type})`
+              ] = existingColumn
+              // occupy the column by a multiType virtual column
+              columns[metaCol.label] = {
+                name: metaCol.label,
+                type: existingColumn.type,
+                data: [],
+                multipleTypes: true,
+                toValue: () => '',
+              }
+              //
+              columnKey = `${metaCol.label} (${type})`
+              existingColumn = columns[columnKey]
+            }
+          }
+          const column = {
+            name: metaCol.label,
+            type,
+            data: existingColumn ? existingColumn.data : [],
+            group: metaCol.group,
+            toValue: toValueFn(metaCol.index, type, metaCol.defaultValue),
+          }
+
+          dataColumns.push(column)
+          columns[columnKey] = column
+        }
+        lastTableMeta = tableMeta
+      }
+      for (let i = 0; i < dataColumns.length; i++) {
+        const column = dataColumns[i]
+        column.data[tableSize] = column.toValue(row) as
+          | string
+          | number
+          | boolean // TODO wrong type definition in giraffe
+      }
+      tableSize++
+    },
+    complete() {
+      resolve(newTable(tableSize, toTableColumns(columns, tableSize)))
+    },
+    error(e: Error) {
+      if (e?.name === 'AbortError') {
+        resolve(newTable(tableSize, toTableColumns(columns, tableSize)))
+      }
+      reject(e)
+    },
+    useCancellable(val: Cancellable) {
+      cancellable = val
+    },
+  }
+}
 
 /**
  * Executes a flux query and iterrativelly collects results into a giraffe's Table depending on the TableOptions supplied.
  *
- * @param queryApi InfluxDB client's QuiryApi instance
+ * @param queryApi InfluxDB client's QueryApi instance
  * @param query query to execute
- * @param tableOptions tableOptions allows to specify maximum rows to process, or columns to create
+ * @param tableOptions tableOptions allows to filter or even stop the processing of rows, or restrict the columns to collect
  * @return Promise  with query results
  */
-export async function queryTable(
+export function queryTable(
   queryApi: QueryApi,
   query: string | ParameterizedQuery,
   tableOptions: TableOptions = {}
 ): Promise<Table> {
-  const {accept = () => true, columns: onlyColumns} = tableOptions
-  const startTime = Date.now()
-  const timeSpentInThisFunction = DEBUG_queryTable
-    ? () => {
-        console.log(`queryTable took ${Date.now() - startTime}ms: ${query}`)
-      }
-    : () => undefined
-  if (!QUERY_OPTIMIZED) {
-    return await queryRawTable(queryApi, query).finally(timeSpentInThisFunction)
-  }
-  const columns: Record<string, ColumnStore> = {}
-  let dataColumns: ColumnStore[]
-  let lastTableMeta: FluxTableMetaData = new FluxTableMetaData([])
-  let tableSize = 0
-  let cancellable: Cancellable
   return new Promise<Table>((resolve, reject) => {
-    queryApi.queryRows(query, {
-      next(row: string[], tableMeta: FluxTableMetaData) {
-        switch (accept(row, tableMeta)) {
-          case true:
-            break
-          case false:
-            return
-          default:
-            cancellable.cancel()
-        }
-        if (tableMeta !== lastTableMeta) {
-          dataColumns = []
-          for (const metaCol of tableMeta.columns) {
-            const type = toGiraffeColumnType(metaCol.dataType)
-            if (onlyColumns && !onlyColumns.includes(metaCol.label)) {
-              continue // exclude this column
-            }
-
-            // handle the rare situation of having columns with the same name, but different type
-            let columnKey = metaCol.label
-            let existingColumn = columns[columnKey]
-            if (existingColumn) {
-              if (existingColumn.multipleTypes) {
-                // multiple column types of the same name already found
-                // use type-specific column key
-                columnKey = `${metaCol.label} (${type})`
-                existingColumn = columns[columnKey]
-              } else if (existingColumn.type !== type) {
-                // move the existing key to a type-specific key
-                columns[
-                  `${existingColumn.name} (${existingColumn.type})`
-                ] = existingColumn
-                // occupy the column by a multiType virtual column
-                columns[metaCol.label] = {
-                  name: metaCol.label,
-                  type: existingColumn.type,
-                  data: [],
-                  multipleTypes: true,
-                  toValue: () => '',
-                }
-                //
-                columnKey = `${metaCol.label} (${type})`
-                existingColumn = columns[columnKey]
-              }
-            }
-            const column = {
-              name: metaCol.label,
-              type,
-              data: existingColumn ? existingColumn.data : [],
-              group: metaCol.group,
-              toValue: toValueFn(metaCol.index, type, metaCol.defaultValue),
-            }
-
-            dataColumns.push(column)
-            columns[columnKey] = column
-          }
-          lastTableMeta = tableMeta
-        }
-        for (let i = 0; i < dataColumns.length; i++) {
-          const column = dataColumns[i]
-          column.data[tableSize] = column.toValue(row) as
-            | string
-            | number
-            | boolean // TODO wrong type definition in giraffe
-        }
-        tableSize++
-      },
-      complete() {
-        resolve(new SimpleTable(tableSize, toTableColumns(columns, tableSize)))
-      },
-      error(e: Error) {
-        if (e?.name === 'AbortError') {
-          resolve(
-            new SimpleTable(tableSize, toTableColumns(columns, tableSize))
-          )
-        }
-        reject(e)
-      },
-      useCancellable(val: Cancellable) {
-        cancellable = val
-      },
-    })
-  }).finally(timeSpentInThisFunction)
-}
-
-/**
- * Executes a flux to a raw string and then creates a giraffe Table from the string.
- *
- * @param queryApi InfluxDB client's QuiryApi instance
- * @param query query to execute
- * @return Promise  with query results
- */
-export async function queryRawTable(
-  queryApi: QueryApi,
-  query: string | ParameterizedQuery
-): Promise<Table> {
-  const raw = await queryApi.queryRaw(query)
-  return fromFlux(raw).table
+    queryApi.queryRows(
+      query,
+      createFluxResultObserver(resolve, reject, tableOptions)
+    )
+  })
 }
 
 /**
@@ -223,7 +265,6 @@ function toValueFn(
   type: ColumnType,
   def: string
 ): (row: string[]) => number | string | boolean | null {
-  // from: 'boolean' | 'unsignedLong' | 'long' | 'double' | 'string' | 'base64Binary' | 'dateTime:RFC3339' | 'duration'
   switch (type) {
     case 'boolean':
       return (row: string[]) =>
@@ -257,103 +298,7 @@ function toGiraffeColumnType(clientType: ClientColumnType): ColumnType {
     case 'long':
     case 'double':
       return 'number'
-    case 'dateTime:RFC3339':
-      return 'time'
     default:
-      return 'string'
-  }
-}
-
-// internal implementation of Table interface
-class SimpleTable implements Table {
-  public readonly length: number = 0
-
-  private columns: Record<
-    string,
-    Pick<ColumnStore, 'name' | 'type' | 'data'>
-  > = {}
-
-  constructor(
-    length: number,
-    columns: Record<string, Pick<ColumnStore, 'name' | 'type' | 'data'>>
-  ) {
-    this.length = length
-    this.columns = columns
-  }
-
-  get columnKeys(): string[] {
-    return Object.keys(this.columns)
-  }
-
-  getColumn(columnKey: string, columnType?: ColumnType): any[] | null {
-    const column = this.columns[columnKey]
-    if (!column) {
-      return null
-    }
-
-    // Allow time columns to be retrieved as number columns
-    const isWideningTimeType = columnType === 'number' && column.type === 'time'
-    if (columnType && columnType !== column.type && !isWideningTimeType) {
-      return null
-    }
-
-    switch (columnType) {
-      case 'number':
-        return column.data as number[]
-      case 'time':
-        return column.data as number[]
-      case 'string':
-        return column.data as string[]
-      case 'boolean':
-        return column.data as boolean[]
-      default:
-        return column.data as any[]
-    }
-  }
-
-  getColumnName(columnKey: string): string {
-    const column = this.columns[columnKey]
-
-    if (!column) {
-      return (null as any) as string // TODO wrong API interface in giraffe
-    }
-
-    return column.name
-  }
-
-  getColumnType(columnKey: string): ColumnType {
-    const column = this.columns[columnKey]
-
-    if (!column) {
-      return (null as any) as ColumnType // TODO wrong API interface in giraffe
-    }
-
-    return column.type
-  }
-
-  addColumn(
-    columnKey: string,
-    type: ColumnType,
-    data: ColumnData,
-    name?: string
-  ): Table {
-    if (this.columns[columnKey]) {
-      throw new Error('column already exists')
-    }
-
-    if (data.length !== this.length) {
-      throw new Error(
-        `expected column of length ${this.length}, got column of length ${data.length} instead`
-      )
-    }
-
-    return new SimpleTable(this.length, {
-      ...this.columns,
-      [columnKey]: {
-        name: name || columnKey,
-        type,
-        data,
-      },
-    })
+      return clientType && clientType.startsWith('dateTime') ? 'time' : 'string'
   }
 }
