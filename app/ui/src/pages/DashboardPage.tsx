@@ -174,6 +174,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       gauge: {
         suffix: ' ppm',
         tickSuffix: ' ppm',
+        decimalPlaces: {digits: 0, isEnforced: true},
         gaugeColors: [
           {id: 'min', name: 'min', value: 400, hex: '#00aaff', type: 'min'},
           {id: 'max', name: 'max', value: 3000, hex: '#ff6666', type: 'max'},
@@ -186,6 +187,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       gauge: {
         suffix: ' ppm',
         tickSuffix: ' ppm',
+        decimalPlaces: {digits: 0, isEnforced: true},
         gaugeColors: [
           {id: 'min', name: 'min', value: 250, hex: '#00aaff', type: 'min'},
           {id: 'max', name: 'max', value: 2000, hex: '#ff6666', type: 'max'},
@@ -253,6 +255,35 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       .addColumn('_value', 'number', [columnVal])
   }
 
+  // TODO: Remove this function when fixed https://github.com/influxdata/giraffe/issues/284
+  const HackFixNeedleGaugeIssue = (
+    gaugeDef: Partial<GaugeLayerConfig>,
+    table: GirrafeTable | null
+  ): [Partial<GaugeLayerConfig>, GirrafeTable | null] => {
+    if (!table) return [gaugeDef, table]
+    const value = (table.getColumn('_value') as number[])[0]
+    if (value < 1000) return [gaugeDef, table]
+
+    return [
+      {
+        ...gaugeDef,
+        ...(gaugeDef.tickSuffix ? {tickSuffix: `0${gaugeDef.tickSuffix}`} : {}),
+        ...(gaugeDef.suffix ? {suffix: `0${gaugeDef.suffix}`} : {}),
+        gaugeColors: (gaugeDef.gaugeColors || []).map((x) => ({
+          ...x,
+          value: x.value / 10,
+        })),
+      } as Partial<GaugeLayerConfig>,
+      newTable(1)
+        .addColumn(
+          '_time',
+          'time',
+          (table.getColumn('_time') as number[]).slice()
+        )
+        .addColumn('_value', 'number', [value / 10]),
+    ]
+  }
+
   const gauges = deviceData?.measurementsTable?.length ? (
     <Row gutter={[4, 8]}>
       {measurementsDefinitions.map(({gauge, title, column}) => (
@@ -260,10 +291,12 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           {
             <Card title={title}>
               {renderGauge(
-                gauge,
-                HackTableShowColumnLastVal(
-                  deviceData.measurementsTable as GirrafeTable,
-                  column
+                ...HackFixNeedleGaugeIssue(
+                  gauge,
+                  HackTableShowColumnLastVal(
+                    deviceData.measurementsTable as GirrafeTable,
+                    column
+                  )
                 )
               )}
             </Card>
