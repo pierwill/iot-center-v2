@@ -1,15 +1,14 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, FunctionComponent} from 'react'
 import {
   Tooltip,
   Button,
-  message as antdMessage,
-  Progress,
   Card,
   Row,
   Col,
   Collapse,
   Empty,
   Select,
+  Grid,
 } from 'antd'
 import {RouteComponentProps} from 'react-router-dom'
 
@@ -21,6 +20,7 @@ import {
   GAUGE_THEME_LIGHT,
   GaugeLayerConfig,
   LineLayerConfig,
+  newTable,
 } from '@influxdata/giraffe'
 import {
   VIRTUAL_DEVICE,
@@ -28,8 +28,6 @@ import {
   fetchDeviceConfig,
   fetchDeviceData,
   fetchDeviceMeasurements,
-  writeEmulatedData,
-  TProgressFn,
 } from '../util/communication'
 import {
   SettingFilled,
@@ -37,26 +35,24 @@ import {
   InfoCircleFilled,
 } from '@ant-design/icons'
 import CollapsePanel from 'antd/lib/collapse/CollapsePanel'
-import {Option} from 'antd/lib/mentions'
 import {DeviceInfo} from './DevicesPage'
 
 interface Props {
   deviceId?: string
 }
 
-function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
+const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
+  match,
+  history,
+}) => {
   const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<Message | undefined>()
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>()
   const [dataStamp, setDataStamp] = useState(0)
-  const [progress, setProgress] = useState(-1)
   const [devices, setDevices] = useState<DeviceInfo[] | undefined>(undefined)
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
-  const writeAllowed =
-    isVirtualDevice ||
-    new URLSearchParams(location.search).get('write') === 'true'
 
   const withLoading = async (action: () => Promise<void>) => {
     setLoading(true)
@@ -110,51 +106,16 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
     fetchDevices()
   }, [])
 
-  const writeData = async () => {
-    const onProgress: TProgressFn = (percent) => {
-      // console.log(
-      //   `writeData ${current}/${total} (${Math.trunc(percent * 100) / 100}%)`
-      // );
-      setProgress(percent)
-    }
-    try {
-      const count = await writeEmulatedData(
-        deviceData as DeviceData,
-        onProgress
-      )
-      if (count) {
-        antdMessage.success(
-          <>
-            <b>{count}</b> measurement point{count > 1 ? 's were' : ' was'}{' '}
-            written to InfluxDB.
-          </>
-        )
-        setDataStamp(dataStamp + 1) // reload device data
-      } else {
-        antdMessage.info(
-          `No new data were written to InfluxDB, the current measurement is already written.`
-        )
-      }
-    } catch (e) {
-      console.error(e)
-      setMessage({
-        title: 'Cannot write data',
-        description: String(e),
-        type: 'error',
-      })
-    }
-    setProgress(-1)
-  }
-
-  //#region  gauges for quick state overview
-
-  type TGaugeDefinition = {
+  type TMeasurementDefinition = {
     title: string
+    column: string
     gauge: Partial<GaugeLayerConfig>
+    line?: Partial<LineLayerConfig>
   }
-  const gaugeDefinitions: TGaugeDefinition[] = [
+  const measurementsDefinitions: TMeasurementDefinition[] = [
     {
       title: 'Temperature',
+      column: 'Temperature',
       gauge: {
         suffix: ' °C',
         tickSuffix: ' °C',
@@ -166,6 +127,7 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
     },
     {
       title: 'Humidity',
+      column: 'Humidity',
       gauge: {
         suffix: ' %',
         tickSuffix: ' %',
@@ -205,9 +167,11 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
     },
     {
       title: 'Pressure',
+      column: 'Pressure',
       gauge: {
         suffix: ' hPa',
         tickSuffix: ' hPa',
+        decimalPlaces: {digits: 0, isEnforced: true},
         gaugeColors: [
           {id: 'min', name: 'min', value: 370, hex: '#00ffff', type: 'min'},
           {id: 'max', name: 'max', value: 1_060, hex: '#ff6666', type: 'max'},
@@ -215,10 +179,11 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
       },
     },
     {
-      title: 'Heat index',
+      title: 'TVOC',
+      column: 'TVOC',
       gauge: {
-        suffix: ' °C',
-        tickSuffix: ' °C',
+        suffix: ' ppm',
+        tickSuffix: ' ppm',
         gaugeColors: [
           {id: 'min', name: 'min', value: -20, hex: '#00aaff', type: 'min'},
           {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
@@ -226,7 +191,8 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
       },
     },
     {
-      title: 'Dew Point',
+      title: 'CO2',
+      column: 'CO2',
       gauge: {
         suffix: ' °C',
         tickSuffix: ' °C',
@@ -240,7 +206,7 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
 
   const renderGauge = (
     gaugeDefinition: Partial<GaugeLayerConfig>,
-    table: GirrafeTable
+    table: GirrafeTable | null
   ) => {
     const gaugeDefaults: GaugeLayerConfig = {
       type: 'gauge',
@@ -258,12 +224,14 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
     }
 
     return (
-      <>
-        <div style={{width: '100%', height: 150}}>
+      <div style={{width: '100%', height: 150}}>
+        {table ? (
           <Plot
             config={{
               showAxes: false,
-              layers: [{...gaugeDefaults, ...gaugeDefinition}],
+              layers: [
+                {...gaugeDefaults, ...gaugeDefinition, ...{y: 'Temperature'}},
+              ],
               table,
               valueFormatters: {
                 _time: timeFormatter({
@@ -273,18 +241,41 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
               },
             }}
           />
-        </div>
-      </>
+        ) : (
+          <Empty />
+        )}
+      </div>
     )
+  }
+
+  // TODO: find way to select data to show through giraffe tools (like y in LinePlot)
+  const HackTableShowColumnLastVal = (table: GirrafeTable, column: string) => {
+    const last = function <T>(arr: T[]) {
+      return arr && arr[arr.length - 1]
+    }
+    const time = last(table.getColumn('_time') as number[])
+    const columnVal = last(table.getColumn(column) as number[])
+
+    if (!columnVal && columnVal !== 0) return null
+
+    return newTable(1)
+      .addColumn('_time', 'time', [time])
+      .addColumn('_value', 'number', [columnVal])
   }
 
   const gauges = deviceData?.measurementsTable?.length ? (
     <Row gutter={[4, 8]}>
-      {gaugeDefinitions.map(({gauge, title}) => (
+      {measurementsDefinitions.map(({gauge, title, column}) => (
         <Col sm={24} md={12} xl={6}>
           {
             <Card title={title}>
-              {renderGauge(gauge, deviceData.measurementsTable as GirrafeTable)}
+              {renderGauge(
+                gauge,
+                HackTableShowColumnLastVal(
+                  deviceData.measurementsTable as GirrafeTable,
+                  column
+                )
+              )}
             </Card>
           }
         </Col>
@@ -296,51 +287,23 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
     </Card>
   )
 
-  //#endregion
-
-  //#region Plots showing changes in time
-
-  type TLineDefinition = {
-    title: string
-    line: Partial<LineLayerConfig>
-  }
-  const plotDefinitions: TLineDefinition[] = [
-    {
-      title: 'Temperature',
-      line: {},
-    },
-    {
-      title: 'Humidity',
-      line: {},
-    },
-    {
-      title: 'Pressure',
-      line: {},
-    },
-    {
-      title: 'Heat index',
-      line: {},
-    },
-    {
-      title: 'Dew Point',
-      line: {},
-    },
-  ]
-
   const renderPlot = (
-    lineDefinition: Partial<LineLayerConfig>,
-    table: GirrafeTable
+    lineDefinition: Partial<LineLayerConfig> | undefined,
+    table: GirrafeTable,
+    column: string
   ) => {
     const lineDefaults: LineLayerConfig = {
       type: 'line',
       x: '_time',
-      y: '_value',
+      y: column,
       interpolation: 'natural',
     }
 
+    const hasData = !!table.getColumn(column)
+
     return (
-      <>
-        <div style={{width: '100%', height: 200}}>
+      <div style={{width: '100%', height: 200}}>
+        {hasData ? (
           <Plot
             config={{
               layers: [{...lineDefaults, ...lineDefinition}],
@@ -353,22 +316,67 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
               },
             }}
           />
-        </div>
-      </>
+        ) : (
+          <Empty />
+        )}
+      </div>
     )
   }
 
   const plots = deviceData?.measurementsTable?.length ? (
-    <Collapse defaultActiveKey={plotDefinitions.map((_, i) => i)}>
-      {plotDefinitions.map(({line, title}, i) => (
+    <Collapse defaultActiveKey={measurementsDefinitions.map((_, i) => i)}>
+      {measurementsDefinitions.map(({line, title, column}, i) => (
         <CollapsePanel key={i} header={title}>
-          {renderPlot(line, deviceData.measurementsTable as GirrafeTable)}
+          {renderPlot(
+            line,
+            deviceData.measurementsTable as GirrafeTable,
+            column
+          )}
         </CollapsePanel>
       ))}
     </Collapse>
   ) : undefined
 
-  //#endregion
+  const dashboardControls = (
+    <>
+      <Tooltip title="Choose device" placement="left">
+        <Select
+          showSearch
+          value={deviceId}
+          placeholder={'select device to show'}
+          showArrow={true}
+          filterOption={true}
+          onChange={(key) => history.push(`/dashboard/${key}`)}
+          style={{minWidth: 200}}
+          loading={!devices}
+          disabled={!devices}
+        >
+          {devices &&
+            devices.map(({deviceId}) => (
+              <Select.Option key={deviceId} value={deviceId}>
+                {deviceId}
+              </Select.Option>
+            ))}
+        </Select>
+      </Tooltip>
+
+      <Tooltip title="Reload Device Data">
+        <Button
+          disabled={loading}
+          loading={loading}
+          onClick={() => setDataStamp(dataStamp + 1)}
+          icon={<ReloadOutlined />}
+        />
+      </Tooltip>
+      <Tooltip title="Go to device settings" placement="topRight">
+        <Button
+          type="primary"
+          icon={<SettingFilled />}
+          href={`/devices/${deviceId}`}
+        ></Button>
+      </Tooltip>
+    </>
+  )
 
   return (
     <PageContent
@@ -384,43 +392,7 @@ function DashboardPage({match, location, history}: RouteComponentProps<Props>) {
           `Device ${deviceId}`
         )
       }
-      titleExtra={
-        <>
-          <Tooltip title="Choose device" placement="left">
-            <Select
-              showSearch
-              value={deviceId}
-              placeholder={'select device to show'}
-              showArrow={true}
-              filterOption={true}
-              onChange={(key) => history.push(`/dashboard/${key}`)}
-              style={{minWidth: 200}}
-              loading={!devices}
-              disabled={!devices}
-            >
-              {devices &&
-                devices.map(({deviceId}) => (
-                  <Option key={deviceId}>{deviceId}</Option>
-                ))}
-            </Select>
-          </Tooltip>
-
-          <Tooltip title="Reload Device Data">
-            <Button
-              disabled={loading}
-              onClick={() => setDataStamp(dataStamp + 1)}
-              icon={<ReloadOutlined />}
-            />
-          </Tooltip>
-          <Tooltip title="Go to device settings" placement="topRight">
-            <Button
-              type="primary"
-              icon={<SettingFilled />}
-              href={`/devices/${deviceId}`}
-            ></Button>
-          </Tooltip>
-        </>
-      }
+      titleExtra={dashboardControls}
       message={message}
       spin={loading}
     >

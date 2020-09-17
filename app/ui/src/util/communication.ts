@@ -1,6 +1,6 @@
 import {InfluxDB, flux, Point} from '@influxdata/influxdb-client'
 
-import {Table as GirrafeTable} from '@influxdata/giraffe'
+import {Table as GirafeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
 
 export interface DeviceConfig {
@@ -16,7 +16,7 @@ export interface DeviceData {
   maxValue?: number
   maxTime?: string
   count?: string
-  measurementsTable?: GirrafeTable
+  measurementsTable?: GirafeTable
 }
 export type TProgressFn = (
   percent: number,
@@ -80,7 +80,7 @@ from(bucket: ${bucket})
 
 export const fetchDeviceMeasurements = async (
   config: DeviceConfig
-): Promise<GirrafeTable> => {
+): Promise<GirafeTable> => {
   const {
     // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
     influx_token: token,
@@ -92,14 +92,12 @@ export const fetchDeviceMeasurements = async (
   const result = await queryTable(
     queryApi,
     flux`
+  import "influxdata/influxdb/v1"    
   from(bucket: ${bucket})
     |> range(start: -30d)
-    |> filter(fn: (r) => r._measurement == "air")
+    |> filter(fn: (r) => r._measurement == "environment")
     |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "temperature")`,
-    {
-      columns: ['_time', '_value'],
-    }
+    |> v1.fieldsAsCols()`
   )
   return result
 }
