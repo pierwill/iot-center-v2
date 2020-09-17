@@ -395,6 +395,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       titleExtra={dashboardControls}
       message={message}
       spin={loading}
+      forceShowScroll={true}
     >
       {gauges}
 

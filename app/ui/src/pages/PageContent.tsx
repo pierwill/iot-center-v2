@@ -1,5 +1,5 @@
-import React, {ReactNode, FunctionComponent} from 'react'
-import {Layout, PageHeader, Spin, Alert} from 'antd'
+import React, { ReactNode, FunctionComponent } from 'react'
+import { Layout, PageHeader, Spin, Alert } from 'antd'
 
 export interface Message {
   title: string
@@ -12,19 +12,20 @@ export interface PageContentProps {
   titleExtra?: ReactNode
   children: ReactNode
   spin?: boolean
-  message?: Message
+  message?: Message,
+  forceShowScroll?: boolean,
 }
 
 const PageContent: FunctionComponent<PageContentProps> = (props) => {
   const content = props.spin ? (
-    <div className="site-layout-background" style={{minHeight: 360}}>
+    <div className="site-layout-background" style={{ minHeight: 360 }}>
       <Spin>{props.children}</Spin>
     </div>
   ) : (
-    <div className="site-layout-background" style={{minHeight: 360}}>
-      {props.children}
-    </div>
-  )
+      <div className="site-layout-background" style={{ minHeight: 360 }}>
+        {props.children}
+      </div>
+    )
   return (
     <Layout.Content
       style={{
@@ -33,11 +34,13 @@ const PageContent: FunctionComponent<PageContentProps> = (props) => {
         margin: 0,
         minHeight: 280,
         minWidth: 350,
+        height: "100vh",
+        overflowY: props.forceShowScroll ? "scroll" : "auto",
       }}
     >
       <PageHeader
         title={props.title}
-        style={{paddingLeft: 0, paddingRight: 0}}
+        style={{ paddingLeft: 0, paddingRight: 0 }}
         extra={props?.titleExtra}
       />
       {props.message ? (
