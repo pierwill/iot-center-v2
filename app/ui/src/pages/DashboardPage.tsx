@@ -1,15 +1,5 @@
 import React, {useState, useEffect, FunctionComponent} from 'react'
-import {
-  Tooltip,
-  Button,
-  Card,
-  Row,
-  Col,
-  Collapse,
-  Empty,
-  Select,
-  Grid,
-} from 'antd'
+import {Tooltip, Button, Card, Row, Col, Collapse, Empty, Select} from 'antd'
 import {RouteComponentProps} from 'react-router-dom'
 
 import PageContent, {Message} from './PageContent'
@@ -120,7 +110,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         suffix: ' °C',
         tickSuffix: ' °C',
         gaugeColors: [
-          {id: 'min', name: 'min', value: -20, hex: '#00aaff', type: 'min'},
+          {id: 'min', name: 'min', value: 0, hex: '#00aaff', type: 'min'},
           {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
         ],
       },
@@ -173,8 +163,20 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         tickSuffix: ' hPa',
         decimalPlaces: {digits: 0, isEnforced: true},
         gaugeColors: [
-          {id: 'min', name: 'min', value: 370, hex: '#00ffff', type: 'min'},
-          {id: 'max', name: 'max', value: 1_060, hex: '#ff6666', type: 'max'},
+          {id: 'min', name: 'min', value: 970, hex: '#00ffff', type: 'min'},
+          {id: 'max', name: 'max', value: 1_050, hex: '#ff6666', type: 'max'},
+        ],
+      },
+    },
+    {
+      title: 'CO2',
+      column: 'CO2',
+      gauge: {
+        suffix: ' ppm',
+        tickSuffix: ' ppm',
+        gaugeColors: [
+          {id: 'min', name: 'min', value: 400, hex: '#00aaff', type: 'min'},
+          {id: 'max', name: 'max', value: 3000, hex: '#ff6666', type: 'max'},
         ],
       },
     },
@@ -185,20 +187,8 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         suffix: ' ppm',
         tickSuffix: ' ppm',
         gaugeColors: [
-          {id: 'min', name: 'min', value: -20, hex: '#00aaff', type: 'min'},
-          {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
-        ],
-      },
-    },
-    {
-      title: 'CO2',
-      column: 'CO2',
-      gauge: {
-        suffix: ' °C',
-        tickSuffix: ' °C',
-        gaugeColors: [
-          {id: 'min', name: 'min', value: -20, hex: '#00aaff', type: 'min'},
-          {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
+          {id: 'min', name: 'min', value: 250, hex: '#00aaff', type: 'min'},
+          {id: 'max', name: 'max', value: 2000, hex: '#ff6666', type: 'max'},
         ],
       },
     },
@@ -266,7 +256,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   const gauges = deviceData?.measurementsTable?.length ? (
     <Row gutter={[4, 8]}>
       {measurementsDefinitions.map(({gauge, title, column}) => (
-        <Col sm={24} md={12} xl={6}>
+        <Col xs={24} md={12} xl={6}>
           {
             <Card title={title}>
               {renderGauge(
