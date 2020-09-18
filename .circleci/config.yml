@@ -19,12 +19,12 @@ commands:
             - ~/.cache/yarn
 
 jobs:
-  tests:
+  app:
     parameters:
-      version:
+      node_version:
         type: string
     docker:
-      - image: circleci/node:<< parameters.version >>
+      - image: circleci/node:<< parameters.node_version >>
     steps:
       - checkout
       - init-app-dependencies
@@ -61,6 +61,6 @@ jobs:
 workflows:
   build:
     jobs:
-      - tests:
-          version: "12"
+      - app:
+          node_version: "12"
       - client_python
