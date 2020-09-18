@@ -12,7 +12,12 @@ import {
 } from 'antd'
 import {Link} from 'react-router-dom'
 import {ColumnsType} from 'antd/lib/table'
-import {AreaChartOutlined, DeleteFilled, SettingFilled} from '@ant-design/icons'
+import {
+  AreaChartOutlined,
+  DeleteFilled,
+  ExclamationCircleFilled,
+  SettingFilled,
+} from '@ant-design/icons'
 
 export interface DeviceInfo {
   key: string
@@ -138,12 +143,14 @@ const DevicesPage: FunctionComponent = () => {
             />
           </Tooltip>
           <Popconfirm
+            icon={<ExclamationCircleFilled style={{color: 'red'}} />}
             title={`Are you sure to remove '${device.deviceId}' ?`}
             onConfirm={() => removeAuthorization(device)}
             okText="Yes"
+            okType="danger"
             cancelText="No"
           >
-            <Tooltip title="Delete device" placement="topRight" color="red">
+            <Tooltip title="Remove device" placement="topRight" color="red">
               <Button type="default" icon={<DeleteFilled />} danger />
             </Tooltip>
           </Popconfirm>
