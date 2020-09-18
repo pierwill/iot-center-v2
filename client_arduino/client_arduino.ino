@@ -26,18 +26,24 @@
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 10
 #define WRITE_BUFFER_SIZE 30
+#define DEFAULT_CONFIG_REFRESH 360
+#define DEFAULT_MEASUREMENT_INTERVAL 10
 
 #include "mirek.h"
 
 #define IOT_CENTER_API_URL IOT_CENTER_URL DEVICE_UUID
+
+
 // InfluxDB client
 InfluxDBClient client;
 // Data point
 Point envData("environment");
-// Number for loops to sync new configuration
-int iterations = 0;
-int configRefresh = 360;
-int 
+// How often the device should read configuration in seconds
+int configRefresh = DEFAULT_CONFIG_REFRESH;
+// How often the device should transmit measurements in seconds
+int measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
+//Time of the last config load
+unsigned long loadConfigTime = 0;
 
 String loadParameter( const String& response, const char* param) {
   int i = response.indexOf(param);
@@ -47,6 +53,10 @@ String loadParameter( const String& response, const char* param) {
     return "";
   }
   return response.substring( response.indexOf(":", i) + 2, response.indexOf("\n", i));  
+}
+
+String IpAddress2String(const IPAddress& ipAddress) {
+  return String(ipAddress[0]) + String(".") + String(ipAddress[1]) + String(".") + String(ipAddress[2]) + String(".") + String(ipAddress[3]); 
 }
 
 void configSync() {
@@ -68,6 +78,7 @@ configuration_refresh: 3600
   
   // Load config from IoT Center
   HTTPClient http;
+  Serial.println("Connecting " IOT_CENTER_API_URL);
   http.begin( IOT_CENTER_API_URL);
   http.addHeader("Accept", "text/plain");
   int httpCode = http.GET();
@@ -125,12 +136,15 @@ configuration_refresh: 3600
 
     //Load refersh parameters
     int influxdbInt = loadParameter( payload, "measurement_interval").toInt();
-    Serial.println(influxdbInt);
-    int influxdbRefr = loadParameter( payload, "configuration_refresh").toInt();
-    Serial.println(influxdbRefr);
+    //Serial.println(influxdbInt);
+    configRefresh = loadParameter( payload, "configuration_refresh").toInt();
+    if (configRefresh == 0)
+      configRefresh = DEFAULT_CONFIG_REFRESH;
+    //Serial.println(configRefresh);
   } else {
     Serial.println("[HTTP] GET failed, emty response"); 
   }
+  loadConfigTime = millis();
 }
 
 void setup() {
@@ -146,23 +160,20 @@ void setup() {
     delay(100);
   }
   Serial.println();
+  Serial.println("Connected " + WiFi.SSID() + " " + IpAddress2String(WiFi.localIP()));
 
   // Load configuration including time
   configSync();
 
   // Add tags
-  envData.addTag("clientID", DEVICE_UUID);
+  envData.addTag("clientId", DEVICE_UUID);
   envData.addTag("device", DEVICE);
   envData.addTag("sensor", "BME280+GPS"); //TODO select sensor
 }
 
 void loop() {
-  // Sync time for batching once per hour
-  if (iterations++ >= 360) {
-    configSync();
-    iterations = 0;
-  }
-
+  unsigned long loopTime = millis();
+  
   // Report RSSI of currently connected network
   envData.setTime(time(nullptr));
   envData.addField("Temperature", 10.21);
@@ -178,7 +189,8 @@ void loop() {
   Serial.println(envData.toLineProtocol());
 
   // Write point into buffer - high priority measure
-  //client.writePoint(envData);
+  unsigned long writeTime = millis();
+  client.writePoint(envData);
 
   // Clear fields for next usage. Tags remain the same.
   envData.clearFields();
@@ -188,7 +200,6 @@ void loop() {
     Serial.println("Wifi connection lost");
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
-  Serial.println("Flushing data into InfluxDB");
   if (!client.flushBuffer()) {
     Serial.print("InfluxDB flush failed: ");
     Serial.println(client.getLastErrorMessage());
@@ -196,7 +207,24 @@ void loop() {
     Serial.println(client.isBufferFull() ? "Yes" : "No");
   }
 
-  //Wait 10s
-  Serial.println("Wait 60s");
-  delay(60000);
+  // Sync time for batching once per hour
+  if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000)))
+    configSync();   
+
+  //calculate sleep time
+  long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
+
+  if (delayTime < 0) {
+    Serial.println("Warning, slow processing");
+    delayTime = 0; 
+  }
+  
+  if (delayTime > measurementInterval * 1000) {
+    Serial.println("Error, time overflow");
+    delayTime = measurementInterval * 1000;
+  }
+    
+  Serial.print("Wait: ");
+  Serial.println( delayTime);
+  delay(delayTime);
 }
