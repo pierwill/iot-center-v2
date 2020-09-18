@@ -9,9 +9,11 @@ export interface Message {
 
 export interface PageContentProps {
   title: ReactNode
+  titleExtra?: ReactNode
   children: ReactNode
   spin?: boolean
   message?: Message
+  forceShowScroll?: boolean
 }
 
 const PageContent: FunctionComponent<PageContentProps> = (props) => {
@@ -32,11 +34,14 @@ const PageContent: FunctionComponent<PageContentProps> = (props) => {
         margin: 0,
         minHeight: 280,
         minWidth: 350,
+        height: '100vh',
+        overflowY: props.forceShowScroll ? 'scroll' : 'auto',
       }}
     >
       <PageHeader
         title={props.title}
         style={{paddingLeft: 0, paddingRight: 0}}
+        extra={props?.titleExtra}
       />
       {props.message ? (
         <Alert

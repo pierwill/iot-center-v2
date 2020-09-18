@@ -10,7 +10,7 @@ import {
 import {RouteComponentProps} from 'react-router-dom'
 
 import PageContent, {Message} from './PageContent'
-import {Plot, timeFormatter, Table as GiraffeTable} from '@influxdata/giraffe'
+import {Table as GiraffeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
 import {
   generateTemperature,
@@ -19,6 +19,7 @@ import {
   generateCO2,
   generateTVOC,
 } from '../util/generateValue'
+import {AreaChartOutlined} from '@ant-design/icons'
 
 interface DeviceConfig {
   influx_url: string
@@ -271,6 +272,15 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
       }
       message={message}
       spin={loading}
+      titleExtra={
+        <Tooltip title="Go to device dashboard" placement="topRight">
+          <Button
+            type="primary"
+            icon={<AreaChartOutlined />}
+            href={`/dashboard/${deviceId}`}
+          ></Button>
+        </Tooltip>
+      }
     >
       {deviceId === VIRTUAL_DEVICE ? (
         <>
@@ -314,29 +324,6 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
           {deviceData?.maxValue}
         </Descriptions.Item>
       </Descriptions>
-      {deviceData?.measurementsTable?.length ? (
-        <div style={{width: '100%', height: 300}}>
-          <Plot
-            config={{
-              layers: [
-                {
-                  type: 'line',
-                  x: '_time',
-                  y: 'Temperature',
-                  interpolation: 'natural',
-                },
-              ],
-              table: deviceData.measurementsTable,
-              valueFormatters: {
-                _time: timeFormatter({
-                  timeZone: 'UTC',
-                  format: 'YYYY-MM-DD HH:mm:ss ZZ',
-                }),
-              },
-            }}
-          />
-        </div>
-      ) : undefined}
       {writeAllowed ? (
         <>
           <br />

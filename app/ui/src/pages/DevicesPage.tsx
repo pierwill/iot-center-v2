@@ -12,8 +12,14 @@ import {
 } from 'antd'
 import {Link} from 'react-router-dom'
 import {ColumnsType} from 'antd/lib/table'
+import {
+  AreaChartOutlined,
+  DeleteFilled,
+  ExclamationCircleFilled,
+  SettingFilled,
+} from '@ant-design/icons'
 
-interface DeviceInfo {
+export interface DeviceInfo {
   key: string
   deviceId: string
   createdAt: string
@@ -123,63 +129,89 @@ const DevicesPage: FunctionComponent = () => {
       key: 'action',
       align: 'right',
       render: (_: string, device: DeviceInfo) => (
-        <Popconfirm
-          title={`Are you sure to remove '${device.deviceId}' ?`}
-          onConfirm={() => removeAuthorization(device)}
-          okText="Yes"
-          cancelText="No"
-        >
-          <Button type="link">Remove</Button>
-        </Popconfirm>
+        <>
+          <Tooltip title="Go to device settings" placement="topRight">
+            <Button
+              icon={<SettingFilled />}
+              href={`/devices/${device.deviceId}`}
+            />
+          </Tooltip>
+          <Tooltip title="Go to device dashboard" placement="topRight">
+            <Button
+              icon={<AreaChartOutlined />}
+              href={`/dashboard/${device.deviceId}`}
+            />
+          </Tooltip>
+          <Popconfirm
+            icon={<ExclamationCircleFilled style={{color: 'red'}} />}
+            title={`Are you sure to remove '${device.deviceId}' ?`}
+            onConfirm={() => removeAuthorization(device)}
+            okText="Yes"
+            okType="danger"
+            cancelText="No"
+          >
+            <Tooltip title="Remove device" placement="topRight" color="red">
+              <Button type="default" icon={<DeleteFilled />} danger />
+            </Tooltip>
+          </Popconfirm>
+        </>
       ),
     },
   ]
 
   return (
-    <PageContent title="Device Registrations" spin={loading} message={message}>
+    <PageContent
+      title="Device Registrations"
+      spin={loading}
+      message={message}
+      titleExtra={
+        <>
+          <Tooltip title="Register a new Device">
+            <Button
+              type="dashed"
+              onClick={() => {
+                let deviceId = ''
+                Modal.confirm({
+                  title: 'Register Device',
+                  icon: '',
+                  content: (
+                    <Form name="registerDevice" initialValues={{deviceId}}>
+                      <Form.Item
+                        name="deviceId"
+                        rules={[
+                          {required: true, message: 'Please input device ID !'},
+                        ]}
+                      >
+                        <Input
+                          placeholder="Device ID"
+                          onChange={(e) => (deviceId = e.target.value)}
+                        />
+                      </Form.Item>
+                    </Form>
+                  ),
+                  onOk: () => {
+                    addAuthorization(deviceId)
+                  },
+                  okText: 'Register',
+                })
+              }}
+            >
+              Register
+            </Button>
+          </Tooltip>
+          <Tooltip title="Reload Table">
+            <Button
+              type="primary"
+              onClick={() => setDataStamp(dataStamp + 1)}
+              style={{marginRight: '8px'}}
+            >
+              Reload
+            </Button>
+          </Tooltip>
+        </>
+      }
+    >
       <Table dataSource={data} columns={columnDefinitions}></Table>
-      <Tooltip title="Reload Table">
-        <Button
-          type="primary"
-          onClick={() => setDataStamp(dataStamp + 1)}
-          style={{marginRight: '8px'}}
-        >
-          Reload
-        </Button>
-      </Tooltip>
-      <Tooltip title="Register a new Device">
-        <Button
-          type="dashed"
-          onClick={() => {
-            let deviceId = ''
-            Modal.confirm({
-              title: 'Register Device',
-              icon: '',
-              content: (
-                <Form name="registerDevice" initialValues={{deviceId}}>
-                  <Form.Item
-                    name="deviceId"
-                    rules={[
-                      {required: true, message: 'Please input device ID !'},
-                    ]}
-                  >
-                    <Input
-                      placeholder="Device ID"
-                      onChange={(e) => (deviceId = e.target.value)}
-                    />
-                  </Form.Item>
-                </Form>
-              ),
-              onOk: () => {
-                addAuthorization(deviceId)
-              },
-              okText: 'Register',
-            })
-          }}
-        >
-          Register
-        </Button>
-      </Tooltip>
     </PageContent>
   )
 }
