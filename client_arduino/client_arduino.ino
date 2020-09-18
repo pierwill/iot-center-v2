@@ -36,9 +36,20 @@ InfluxDBClient client;
 Point envData("environment");
 // Number for loops to sync new configuration
 int iterations = 0;
+int configRefresh = 360;
+int 
+
+String loadParameter( const String& response, const char* param) {
+  int i = response.indexOf(param);
+  if (i == -1) {
+    Serial.print("Error - missing parameter: ");
+    Serial.println( param);
+    return "";
+  }
+  return response.substring( response.indexOf(":", i) + 2, response.indexOf("\n", i));  
+}
 
 void configSync() {
-  
 /*  
 influx_url: http://localhost:9999
 influx_org: my-org
@@ -64,8 +75,9 @@ configuration_refresh: 3600
   // httpCode will be negative on error
   if (httpCode == HTTP_CODE_OK) {
     payload = http.getString();
-    Serial.print( "Received configuration: ");
-    Serial.println(payload);
+    Serial.println( "--Received configuration");
+    Serial.print(payload);
+    Serial.println("--end");
   } else {
     Serial.print("[HTTP] GET failed, error: ");
     Serial.println( http.errorToString(httpCode).c_str());
@@ -74,22 +86,33 @@ configuration_refresh: 3600
 
   //Parse response
   if ( payload.length() > 0) {
-    int i = payload.indexOf("influx_url");
-    String influxdbURL = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-    influxdbURL = "http://192.168.57.104:9999";
-    Serial.println("'"+influxdbURL+"'");
-
-    i = payload.indexOf("influx_org");
-    String influxdbOrg = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-
-    i = payload.indexOf("influx_token");
-    String influxdbToken = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
     
-    i = payload.indexOf("influx_bucket");
-    String influxdbBucket = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
+    //Sync time from IoT Cenetr
+    String iotTime = loadParameter( payload, "serverTime");
+    tm tmServer;
+    strptime(iotTime.c_str(), "%Y-%m-%dT%H:%M:%S.%f", &tmServer);
+    time_t ttServer = mktime(&tmServer);
+    struct timeval tvServer = { .tv_sec = ttServer };
+    settimeofday(&tvServer, NULL);
+
+    // Show time
+    ttServer = time(nullptr);
+    Serial.print("Synchronized time: ");
+    Serial.println(String(ctime(&ttServer)));
+
+    //Load InfluxDB parameters
+    String influxdbURL = loadParameter( payload, "influx_url");
+    String influxdbOrg = loadParameter( payload, "influx_org");
+    String influxdbToken = loadParameter( payload, "influx_token");
+    String influxdbBucket = loadParameter( payload, "influx_bucket");
     
     // Set InfluxDB parameters
     client.setConnectionParams(influxdbURL.c_str(), influxdbOrg.c_str(), influxdbBucket.c_str(), influxdbToken.c_str(), InfluxDbCloud2CACert);
+
+    //Enable messages batching and retry buffer
+    WriteOptions wrOpt;
+    wrOpt.writePrecision( WRITE_PRECISION).batchSize( MAX_BATCH_SIZE).bufferSize( WRITE_BUFFER_SIZE);
+    client.setWriteOptions(wrOpt);
 
     // Check server connection
     if (client.validateConnection()) {
@@ -99,21 +122,15 @@ configuration_refresh: 3600
       Serial.print("InfluxDB connection failed: ");
       Serial.println(client.getLastErrorMessage());
     }
-    i = payload.indexOf("serverTime");
-    String influxdbTime = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-    i = payload.indexOf("measurement_interval");
-    String influxdbInt = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-    i = payload.indexOf("configuration_refresh");
-    String influxdbRefr = payload.substring( payload.indexOf(":", i) + 2, payload.indexOf("\n", i));
-  
-    //Enable messages batching and retry buffer
-    client.setWriteOptions(WRITE_PRECISION, MAX_BATCH_SIZE, WRITE_BUFFER_SIZE);
-  }
 
-  // Show time
-  time_t tnow = time(nullptr);
-  Serial.print("Synchronized time: ");
-  Serial.println(String(ctime(&tnow)));
+    //Load refersh parameters
+    int influxdbInt = loadParameter( payload, "measurement_interval").toInt();
+    Serial.println(influxdbInt);
+    int influxdbRefr = loadParameter( payload, "configuration_refresh").toInt();
+    Serial.println(influxdbRefr);
+  } else {
+    Serial.println("[HTTP] GET failed, emty response"); 
+  }
 }
 
 void setup() {
@@ -136,7 +153,7 @@ void setup() {
   // Add tags
   envData.addTag("clientID", DEVICE_UUID);
   envData.addTag("device", DEVICE);
-  envData.addTag("sensor", "BME280"); //TODO select sensor
+  envData.addTag("sensor", "BME280+GPS"); //TODO select sensor
 }
 
 void loop() {
@@ -152,7 +169,7 @@ void loop() {
   envData.addField("Humidity", 62.36);
   envData.addField("Pressure", 983.72);
   envData.addField("CO2", 1337);
-  envData.addField("TVOC", 28425);
+  envData.addField("TVOC", 284);
   envData.addField("Lat", 50.126144);
   envData.addField("Lon", 14.504621);
 
@@ -180,6 +197,6 @@ void loop() {
   }
 
   //Wait 10s
-  Serial.println("Wait 10s");
-  delay(10000);
+  Serial.println("Wait 60s");
+  delay(60000);
 }
