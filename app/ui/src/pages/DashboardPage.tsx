@@ -26,6 +26,7 @@ import {
 } from '@ant-design/icons'
 import CollapsePanel from 'antd/lib/collapse/CollapsePanel'
 import {DeviceInfo} from './DevicesPage'
+import {tableGetColumnLatestVal} from '../util/tableUtils'
 
 interface Props {
   deviceId?: string
@@ -47,8 +48,11 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const withLoading = async (action: () => Promise<void>) => {
     setLoading(true)
-    await action()
-    setLoading(false)
+    try {
+      await action()
+    } finally {
+      setLoading(false)
+    }
   }
 
   // fetch device configuration and data
@@ -222,16 +226,8 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           <Plot
             config={{
               showAxes: false,
-              layers: [
-                {...gaugeDefaults, ...gaugeDefinition, ...{y: 'Temperature'}},
-              ],
+              layers: [{...gaugeDefaults, ...gaugeDefinition}],
               table,
-              valueFormatters: {
-                _time: timeFormatter({
-                  timeZone: 'UTC',
-                  format: 'YYYY-MM-DD HH:mm:ss ZZ',
-                }),
-              },
             }}
           />
         ) : (
@@ -241,23 +237,8 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     )
   }
 
-  // TODO: find way to select data to show through giraffe tools (like y in LinePlot)
-  const HackTableShowColumnLastVal = (table: GirrafeTable, column: string) => {
-    const last = function <T>(arr: T[]) {
-      return arr && arr[arr.length - 1]
-    }
-    const time = last(table.getColumn('_time') as number[])
-    const columnVal = last(table.getColumn(column) as number[])
-
-    if (!columnVal && columnVal !== 0) return null
-
-    return newTable(1)
-      .addColumn('_time', 'time', [time])
-      .addColumn('_value', 'number', [columnVal])
-  }
-
   // TODO: Remove this function when fixed https://github.com/influxdata/giraffe/issues/284
-  const HackFixNeedleGaugeIssue = (
+  const fixNeedleGaugeIssue = (
     gaugeDef: Partial<GaugeLayerConfig>,
     table: GirrafeTable | null
   ): [Partial<GaugeLayerConfig>, GirrafeTable | null] => {
@@ -265,36 +246,33 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     const value = (table.getColumn('_value') as number[])[0]
     if (value < 1000) return [gaugeDef, table]
 
+    // create deep copy to not modify
+    const gaugeDefCpy = {...gaugeDef}
+    gaugeDefCpy.gaugeColors = (gaugeDef.gaugeColors || []).map((x) => ({...x}))
+
+    gaugeDefCpy.tickSuffix = `0${gaugeDef.tickSuffix || ''}`
+    gaugeDefCpy.suffix = `0${gaugeDef.suffix || ''}`
+
+    gaugeDefCpy.gaugeColors.forEach((color) => {
+      color.value = Math.trunc(color.value / 10)
+    })
+
     return [
-      {
-        ...gaugeDef,
-        ...(gaugeDef.tickSuffix ? {tickSuffix: `0${gaugeDef.tickSuffix}`} : {}),
-        ...(gaugeDef.suffix ? {suffix: `0${gaugeDef.suffix}`} : {}),
-        gaugeColors: (gaugeDef.gaugeColors || []).map((x) => ({
-          ...x,
-          value: x.value / 10,
-        })),
-      } as Partial<GaugeLayerConfig>,
-      newTable(1)
-        .addColumn(
-          '_time',
-          'time',
-          (table.getColumn('_time') as number[]).slice()
-        )
-        .addColumn('_value', 'number', [value / 10]),
+      gaugeDefCpy,
+      newTable(1).addColumn('_value', 'number', [Math.trunc(value / 10)]),
     ]
   }
 
-  const gauges = deviceData?.measurementsTable?.length ? (
+  const gauges = deviceData && (
     <Row gutter={[4, 8]}>
       {measurementsDefinitions.map(({gauge, title, column}) => (
         <Col xs={24} md={12} xl={6}>
           {
             <Card title={title}>
               {renderGauge(
-                ...HackFixNeedleGaugeIssue(
+                ...fixNeedleGaugeIssue(
                   gauge,
-                  HackTableShowColumnLastVal(
+                  tableGetColumnLatestVal(
                     deviceData.measurementsTable as GirrafeTable,
                     column
                   )
@@ -305,10 +283,6 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         </Col>
       ))}
     </Row>
-  ) : (
-    <Card>
-      <Empty />
-    </Card>
   )
 
   const renderPlot = (
@@ -347,7 +321,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     )
   }
 
-  const plots = deviceData?.measurementsTable?.length ? (
+  const plots = deviceData && (
     <Collapse defaultActiveKey={measurementsDefinitions.map((_, i) => i)}>
       {measurementsDefinitions.map(({line, title, column}, i) => (
         <CollapsePanel key={i} header={title}>
@@ -359,7 +333,18 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         </CollapsePanel>
       ))}
     </Collapse>
-  ) : undefined
+  )
+
+  const timeOptions: {label: string; value: string}[] = [
+    {label: 'Past 5m', value: '-5m'},
+    {label: 'Past 15m', value: '-15m'},
+    {label: 'Past 1h', value: '-1h'},
+    {label: 'Past 6h', value: '-6h'},
+    {label: 'Past 1d', value: '-1d'},
+    {label: 'Past 3d', value: '-3d'},
+    {label: 'Past 7d', value: '-7d'},
+    {label: 'Past 30d', value: '-30d'},
+  ]
 
   const dashboardControls = (
     <>
@@ -392,16 +377,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           loading={loading}
           disabled={loading}
         >
-          {[
-            {label: 'Past 5m', value: '-5m'},
-            {label: 'Past 15m', value: '-15m'},
-            {label: 'Past 1h', value: '-1h'},
-            {label: 'Past 6h', value: '-6h'},
-            {label: 'Past 1d', value: '-1d'},
-            {label: 'Past 3d', value: '-3d'},
-            {label: 'Past 7d', value: '-7d'},
-            {label: 'Past 30d', value: '-30d'},
-          ].map(({label, value}) => (
+          {timeOptions.map(({label, value}) => (
             <Select.Option key={value} value={value}>
               {label}
             </Select.Option>
@@ -446,9 +422,16 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       spin={loading}
       forceShowScroll={true}
     >
-      {gauges}
-
-      {plots}
+      {deviceData?.measurementsTable?.length ? (
+        <>
+          {gauges}
+          {plots}
+        </>
+      ) : (
+        <Card>
+          <Empty />
+        </Card>
+      )}
     </PageContent>
   )
 }
