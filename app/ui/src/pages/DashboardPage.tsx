@@ -41,6 +41,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   const [deviceData, setDeviceData] = useState<DeviceData | undefined>()
   const [dataStamp, setDataStamp] = useState(0)
   const [devices, setDevices] = useState<DeviceInfo[] | undefined>(undefined)
+  const [timeStart, setTimeStart] = useState('-1d')
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
 
@@ -57,7 +58,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         const deviceConfig = await fetchDeviceConfig(deviceId)
         const [deviceData, table] = await Promise.all([
           fetchDeviceData(deviceConfig),
-          fetchDeviceMeasurements(deviceConfig),
+          fetchDeviceMeasurements(deviceConfig, timeStart),
         ])
         deviceData.measurementsTable = table
         setDeviceData(deviceData)
@@ -72,7 +73,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     }
 
     withLoading(fetchData)
-  }, [dataStamp, deviceId])
+  }, [dataStamp, deviceId, timeStart])
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -380,6 +381,31 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
                 {deviceId}
               </Select.Option>
             ))}
+        </Select>
+      </Tooltip>
+
+      <Tooltip title="Choose time" placement="left">
+        <Select
+          value={timeStart}
+          onChange={setTimeStart}
+          style={{minWidth: 100}}
+          loading={loading}
+          disabled={loading}
+        >
+          {[
+            {label: 'Past 5m', value: '-5m'},
+            {label: 'Past 15m', value: '-15m'},
+            {label: 'Past 1h', value: '-1h'},
+            {label: 'Past 6h', value: '-6h'},
+            {label: 'Past 1d', value: '-1d'},
+            {label: 'Past 3d', value: '-3d'},
+            {label: 'Past 7d', value: '-7d'},
+            {label: 'Past 30d', value: '-30d'},
+          ].map(({label, value}) => (
+            <Select.Option key={value} value={value}>
+              {label}
+            </Select.Option>
+          ))}
         </Select>
       </Tooltip>
 
