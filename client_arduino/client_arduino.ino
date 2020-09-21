@@ -1,5 +1,3 @@
-//environment,clientID=6cc2e939-af25-45fa-be6c-2241d53aa3de,device=ESP8266,sensor=BME280+CCS811 Temperature=10.21,Humidity=62.36,Pressure=983.72,CO2=1337i,TVOC=28425i,Lat=50.126144,Lon=14.504621
-
 #if defined(ESP32)
   #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
@@ -18,7 +16,7 @@
 #define WIFI_SSID "SSID"
 // WiFi password
 #define WIFI_PASSWORD "PASSWORD"
-// IoT Center URL - set real URL wher IoT Center is running
+// IoT Center URL - set real URL where IoT Center is running
 #define IOT_CENTER_URL "http://IP:5000/api/env/"
 // Define device UUID - use generator e.g. https://www.uuidgenerator.net/version4
 #define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
@@ -31,8 +29,12 @@
 
 #include "mirek.h"
 
-#define IOT_CENTER_API_URL IOT_CENTER_URL DEVICE_UUID
+#define IOT_CENTER_DEVICE_URL IOT_CENTER_URL DEVICE_UUID
 
+// From sensors.ino
+extern float temp, hum, pres, co2, tvoc;
+extern double latitude, longitude;
+extern bool bGPS, bBME, bHDC, bCCS, b7021;
 
 // InfluxDB client
 InfluxDBClient client;
@@ -43,7 +45,7 @@ int configRefresh = DEFAULT_CONFIG_REFRESH;
 // How often the device should transmit measurements in seconds
 int measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
 //Time of the last config load
-unsigned long loadConfigTime = 0;
+unsigned long loadConfigTime;
 
 String loadParameter( const String& response, const char* param) {
   int i = response.indexOf(param);
@@ -78,8 +80,8 @@ configuration_refresh: 3600
   
   // Load config from IoT Center
   HTTPClient http;
-  Serial.println("Connecting " IOT_CENTER_API_URL);
-  http.begin( IOT_CENTER_API_URL);
+  Serial.println("Connecting " IOT_CENTER_DEVICE_URL);
+  http.begin( IOT_CENTER_DEVICE_URL);
   http.addHeader("Accept", "text/plain");
   int httpCode = http.GET();
   String payload;
@@ -109,7 +111,7 @@ configuration_refresh: 3600
     // Show time
     ttServer = time(nullptr);
     Serial.print("Synchronized time: ");
-    Serial.println(String(ctime(&ttServer)));
+    Serial.print(String(ctime(&ttServer)));
 
     //Load InfluxDB parameters
     String influxdbURL = loadParameter( payload, "influx_url");
@@ -141,6 +143,9 @@ configuration_refresh: 3600
     if (configRefresh == 0)
       configRefresh = DEFAULT_CONFIG_REFRESH;
     //Serial.println(configRefresh);
+
+    latitude = loadParameter( payload, "default_lat").toDouble();
+    longitude = loadParameter( payload, "default_lon").toDouble();
   } else {
     Serial.println("[HTTP] GET failed, emty response"); 
   }
@@ -149,7 +154,10 @@ configuration_refresh: 3600
 
 void setup() {
   Serial.begin(115200);
-
+  
+  // Initialize sensors
+  setupSensors();
+  
   // Setup wifi
   WiFi.mode(WIFI_STA);
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
@@ -168,29 +176,38 @@ void setup() {
   // Add tags
   envData.addTag("clientId", DEVICE_UUID);
   envData.addTag("device", DEVICE);
-  envData.addTag("sensor", "BME280+GPS"); //TODO select sensor
+  envData.addTag("sensor", String(bBME ? "BME280" : "BMP280") + (bCCS ? "+CCS811" : "") + (bHDC ? "+HDC1080" : "") + (b7021 ? "+SI7021" : "") + (bGPS ? "+GPS" : ""));
 }
 
 void loop() {
   unsigned long loopTime = millis();
   
-  // Report RSSI of currently connected network
+  // Read values from all the sensors
+  readSensors();
+  
+  // Report measured values
   envData.setTime(time(nullptr));
-  envData.addField("Temperature", 10.21);
-  envData.addField("Humidity", 62.36);
-  envData.addField("Pressure", 983.72);
-  envData.addField("CO2", 1337);
-  envData.addField("TVOC", 284);
-  envData.addField("Lat", 50.126144);
-  envData.addField("Lon", 14.504621);
+  envData.addField("Temperature", temp);
+  envData.addField("Humidity", hum);
+  envData.addField("Pressure", pres);
+  if ( co2 != NAN)
+    envData.addField("CO2", uint16_t(co2));
+  if ( tvoc != NAN)
+    envData.addField("TVOC", uint16_t(tvoc));
+  envData.addField("Lat", latitude, 6);
+  envData.addField("Lon", longitude, 6);
 
   // Print what are we exactly writing
   Serial.print("Writing: ");
   Serial.println(envData.toLineProtocol());
 
-  // Write point into buffer - high priority measure
+  // Write point into buffer
   unsigned long writeTime = millis();
-  client.writePoint(envData);
+
+  if (temp != NAN) //Write only if we have valid temperature
+    client.writePoint(envData);
+  else
+    Serial.println("Error, missing temperature, skipping write");
 
   // Clear fields for next usage. Tags remain the same.
   envData.clearFields();
@@ -211,7 +228,7 @@ void loop() {
   if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000)))
     configSync();   
 
-  //calculate sleep time
+  // Calculate sleep time
   long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
 
   if (delayTime < 0) {
