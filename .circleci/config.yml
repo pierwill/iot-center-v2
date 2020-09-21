@@ -39,7 +39,7 @@ jobs:
           command: |
             cd app/server
             yarn test
-  client_python:
+  client-python:
     docker:
       - image: circleci/python:3.8-buster
     working_directory:
@@ -57,10 +57,38 @@ jobs:
           command: |
             pip install pydocstyle --user
             pydocstyle client_python.py
+  release-nightly:
+    docker:
+      - image: docker:19
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Early return if this build is from a forked repository
+          command: |
+            if [[ $CIRCLE_PROJECT_USERNAME != "bonitoo-io" ]]; then
+              echo "Nothing to do for forked repositories, so marking this step successful"
+              circleci step halt
+            fi
+      - checkout
+      - run:
+          name: Build and push Docker image
+          command: |
+            cd app/
+            echo $GITHUB_TOKEN | docker login https://docker.pkg.github.com -u $GITHUB_ACTOR --password-stdin
+            docker build -t docker.pkg.github.com/bonitoo-io/iot-center-v2/iot-center:nightly .
+            docker push docker.pkg.github.com/bonitoo-io/iot-center-v2/iot-center:nightly
 
 workflows:
   build:
     jobs:
       - app:
           node_version: "12"
-      - client_python
+      - client-python
+      - release-nightly:
+          requires:
+            - app
+            - client-python
+          filters:
+            branches:
+              only: master
