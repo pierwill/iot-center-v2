@@ -18,3 +18,13 @@ export const tableGetColumnLatestVal = (
 
   return newTable(1).addColumn('_value', 'number', [columnVal])
 }
+
+/**
+ * Returns minimum and maximum time from table
+ */
+export const getXDomainFromTable = (
+  table: GirrafeTable | undefined
+): [number, number] | undefined => {
+  const sorted = table?.getColumn('_time')?.slice()?.sort()
+  if (sorted) return [sorted[0], sorted[sorted.length - 1]] as [number, number]
+}

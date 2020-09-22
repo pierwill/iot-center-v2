@@ -26,7 +26,7 @@ import {
 } from '@ant-design/icons'
 import CollapsePanel from 'antd/lib/collapse/CollapsePanel'
 import {DeviceInfo} from './DevicesPage'
-import {tableGetColumnLatestVal} from '../util/tableUtils'
+import {getXDomainFromTable, tableGetColumnLatestVal} from '../util/tableUtils'
 
 interface Props {
   deviceId?: string
@@ -43,6 +43,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   const [dataStamp, setDataStamp] = useState(0)
   const [devices, setDevices] = useState<DeviceInfo[] | undefined>(undefined)
   const [timeStart, setTimeStart] = useState('-1d')
+  const [xDomain, setXDomain] = useState<number[] | undefined>(undefined)
+
+  const resetXDomain = () =>
+    setXDomain(getXDomainFromTable(deviceData?.measurementsTable))
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
 
@@ -78,6 +82,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
     withLoading(fetchData)
   }, [dataStamp, deviceId, timeStart])
+
+  useEffect(() => {
+    resetXDomain()
+  }, [deviceData])
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -304,6 +312,9 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         {hasData ? (
           <Plot
             config={{
+              xDomain: xDomain,
+              onSetXDomain: setXDomain,
+              onResetXDomain: resetXDomain,
               layers: [{...lineDefaults, ...lineDefinition}],
               table,
               valueFormatters: {
