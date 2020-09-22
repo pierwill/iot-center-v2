@@ -50,18 +50,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
 
-  const withLoading = async (action: () => Promise<void>) => {
-    setLoading(true)
-    try {
-      await action()
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // fetch device configuration and data
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true)
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId)
         const [deviceData, table] = await Promise.all([
@@ -78,9 +70,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           type: 'error',
         })
       }
+      setLoading(false)
     }
 
-    withLoading(fetchData)
+    fetchData()
   }, [dataStamp, deviceId, timeStart])
 
   useEffect(() => {
@@ -254,24 +247,21 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     const value = (table.getColumn('_value') as number[])[0]
     if (value < 1000) return [gaugeDef, table]
 
-    // create deep copy to not modify
-    const gaugeDefCpy = {...gaugeDef}
-    gaugeDefCpy.gaugeColors = (gaugeDef.gaugeColors || []).map((x) => ({...x}))
+    const gaugeDefCopy = {...gaugeDef}
 
-    gaugeDefCpy.tickSuffix = `0${gaugeDef.tickSuffix || ''}`
-    gaugeDefCpy.suffix = `0${gaugeDef.suffix || ''}`
-
-    gaugeDefCpy.gaugeColors.forEach((color) => {
-      color.value = Math.trunc(color.value / 10)
-    })
+    gaugeDefCopy.tickSuffix = `0${gaugeDef.tickSuffix || ''}`
+    gaugeDefCopy.suffix = `0${gaugeDef.suffix || ''}`
+    gaugeDefCopy.gaugeColors = (
+      gaugeDef.gaugeColors || []
+    ).map(({value, ...rest}) => ({value: Math.trunc(value / 10), ...rest}))
 
     return [
-      gaugeDefCpy,
+      gaugeDefCopy,
       newTable(1).addColumn('_value', 'number', [Math.trunc(value / 10)]),
     ]
   }
 
-  const gauges = deviceData && (
+  const gauges = deviceData?.measurementsTable?.length && (
     <Row gutter={[4, 8]}>
       {measurementsDefinitions.map(({gauge, title, column}) => (
         <Col xs={24} md={12} xl={6}>
@@ -332,7 +322,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     )
   }
 
-  const plots = deviceData && (
+  const plots = deviceData?.measurementsTable?.length && (
     <Collapse defaultActiveKey={measurementsDefinitions.map((_, i) => i)}>
       {measurementsDefinitions.map(({line, title, column}, i) => (
         <CollapsePanel key={i} header={title}>
