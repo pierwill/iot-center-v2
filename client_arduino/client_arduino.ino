@@ -34,7 +34,6 @@
 // From sensors.ino
 extern float temp, hum, pres, co2, tvoc;
 extern double latitude, longitude;
-extern bool bGPS, bBME, bHDC, bCCS, b7021;
 
 // InfluxDB client
 InfluxDBClient client;
@@ -154,6 +153,7 @@ configuration_refresh: 3600
 
 void setup() {
   Serial.begin(115200);
+  delay(1000);
   
   // Initialize sensors
   setupSensors();
@@ -176,7 +176,7 @@ void setup() {
   // Add tags
   envData.addTag("clientId", DEVICE_UUID);
   envData.addTag("device", DEVICE);
-  envData.addTag("sensor", String(bBME ? "BME280" : "BMP280") + (bCCS ? "+CCS811" : "") + (bHDC ? "+HDC1080" : "") + (b7021 ? "+SI7021" : "") + (bGPS ? "+GPS" : ""));
+  envData.addTag("sensor", getSensorsList());
 }
 
 void loop() {
@@ -190,9 +190,9 @@ void loop() {
   envData.addField("Temperature", temp);
   envData.addField("Humidity", hum);
   envData.addField("Pressure", pres);
-  if ( co2 != NAN)
+  if ( !isnan(co2))
     envData.addField("CO2", uint16_t(co2));
-  if ( tvoc != NAN)
+  if ( !isnan(tvoc))
     envData.addField("TVOC", uint16_t(tvoc));
   envData.addField("Lat", latitude, 6);
   envData.addField("Lon", longitude, 6);
@@ -204,7 +204,7 @@ void loop() {
   // Write point into buffer
   unsigned long writeTime = millis();
 
-  if (temp != NAN) //Write only if we have valid temperature
+  if (!isnan(temp)) //Write only if we have valid temperature
     client.writePoint(envData);
   else
     Serial.println("Error, missing temperature, skipping write");
