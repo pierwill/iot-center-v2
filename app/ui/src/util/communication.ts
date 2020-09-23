@@ -1,4 +1,4 @@
-import {InfluxDB, flux, Point} from '@influxdata/influxdb-client'
+import {InfluxDB, flux, Point, fluxDuration} from '@influxdata/influxdb-client'
 
 import {Table as GirafeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
@@ -79,7 +79,8 @@ from(bucket: ${bucket})
 }
 
 export const fetchDeviceMeasurements = async (
-  config: DeviceConfig
+  config: DeviceConfig,
+  timeStart = '-30d'
 ): Promise<GirafeTable> => {
   const {
     // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
@@ -94,7 +95,7 @@ export const fetchDeviceMeasurements = async (
     flux`
   import "influxdata/influxdb/v1"    
   from(bucket: ${bucket})
-    |> range(start: -30d)
+    |> range(start: ${fluxDuration(timeStart)})
     |> filter(fn: (r) => r._measurement == "environment")
     |> filter(fn: (r) => r.clientId == ${id})
     |> v1.fieldsAsCols()`
