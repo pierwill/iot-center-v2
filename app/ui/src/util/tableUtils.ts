@@ -1,4 +1,4 @@
-import {Table as GirrafeTable, newTable} from '@influxdata/giraffe'
+import { Table as GirrafeTable, newTable } from '@influxdata/giraffe'
 
 /**
  * Selects latest value for given column.
@@ -8,10 +8,20 @@ export const tableGetColumnLatestVal = (
   table: GirrafeTable,
   column: string
 ): GirrafeTable | null => {
-  const last = function <T>(arr: T[]) {
-    return arr && arr[arr.length - 1]
+  const last = function <T>(arr: T[], lastN = 1) {
+    if (!arr)
+      return
+    let index = arr.length - 1;
+    while (index >= 0 && lastN) {
+      const value = arr[index];
+      if (value !== null && value !== undefined)
+        return value;
+
+      index--;
+      lastN--;
+    }
   }
-  const columnVal = last(table.getColumn(column) as number[])
+  const columnVal = last(table.getColumn(column) as number[], 500)
 
   if (columnVal === null || columnVal === undefined) return null
 
