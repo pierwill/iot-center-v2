@@ -120,11 +120,25 @@ configuration_refresh: 3600
     
     // Set InfluxDB parameters
     client.setConnectionParams(influxdbURL.c_str(), influxdbOrg.c_str(), influxdbBucket.c_str(), influxdbToken.c_str(), InfluxDbCloud2CACert);
-
+    
+    //Load refresh parameters
+    measurementInterval = loadParameter( payload, "measurement_interval").toInt();
+    if (measurementInterval == 0)
+      measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
+    //Serial.println(influxdbInt);
+    configRefresh = loadParameter( payload, "configuration_refresh").toInt();
+    if (configRefresh == 0)
+      configRefresh = DEFAULT_CONFIG_REFRESH;
+    //Serial.println(configRefresh);
+    
     //Enable messages batching and retry buffer
     WriteOptions wrOpt;
     wrOpt.writePrecision( WRITE_PRECISION).batchSize( MAX_BATCH_SIZE).bufferSize( WRITE_BUFFER_SIZE);
     client.setWriteOptions(wrOpt);
+    
+    HTTPOptions htOpt;
+    htOpt.connectionReuse(measurementInterval <= 20);
+    client.setHTTPOptions(htOpt);
 
     // Check server connection
     if (client.validateConnection()) {
@@ -134,14 +148,6 @@ configuration_refresh: 3600
       Serial.print("InfluxDB connection failed: ");
       Serial.println(client.getLastErrorMessage());
     }
-
-    //Load refersh parameters
-    int influxdbInt = loadParameter( payload, "measurement_interval").toInt();
-    //Serial.println(influxdbInt);
-    configRefresh = loadParameter( payload, "configuration_refresh").toInt();
-    if (configRefresh == 0)
-      configRefresh = DEFAULT_CONFIG_REFRESH;
-    //Serial.println(configRefresh);
 
     latitude = loadParameter( payload, "default_lat").toDouble();
     longitude = loadParameter( payload, "default_lon").toDouble();
@@ -232,7 +238,7 @@ void loop() {
   long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
 
   if (delayTime < 0) {
-    Serial.println("Warning, slow processing");
+    Serial.println("Warning, too slow processing");
     delayTime = 0; 
   }
   
