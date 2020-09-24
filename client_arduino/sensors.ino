@@ -5,11 +5,11 @@
 #include <Adafruit_BME680.h>
 
 //Define pin number e where DHTxx device is connected and and device type, if you comment the pin, the DHTxx code will be excluded
-#define DHT_PIN 14
+//#define DHT_PIN 14
 #define DHTTYPE DHT22   // DHT11, DHT 21 (AM2301), DHT 22  (AM2302), AM2321
 
 //Define pin number where one wire device(s) are connected, if you comment the pin, the onewire code will be excluded
-//#define ONE_WIRE_PIN 2
+#define ONE_WIRE_PIN 4
 
 #if defined(ONE_WIRE_PIN)
   #include <OneWire.h>
@@ -160,6 +160,11 @@ void setupSensors() {
 #if defined(ONE_WIRE_PIN)
   ow_sensors.begin(); // Start up the library
   oneWireDevices = ow_sensors.getDeviceCount();
+  if (oneWireDevices > 0) { 
+    Serial.print("Found One Wire devices: ");
+    Serial.println(oneWireDevices);
+  } else
+    Serial.println("Missing One Wire device");
   ow_sensors.setResolution( 12); //12-bit resolution
 #endif
 
