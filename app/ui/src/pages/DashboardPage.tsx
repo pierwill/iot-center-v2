@@ -10,7 +10,6 @@ import {
   GAUGE_THEME_LIGHT,
   GaugeLayerConfig,
   LineLayerConfig,
-  newTable,
 } from '@influxdata/giraffe'
 import {
   VIRTUAL_DEVICE,
@@ -215,7 +214,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       tickSuffix: '',
       gaugeColors: [],
       gaugeSize: 4,
-      theme: {
+      gaugeTheme: {
         ...GAUGE_THEME_LIGHT,
         valuePositionYOffset: 1,
       },
@@ -238,29 +237,6 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     )
   }
 
-  // TODO: Remove this function when fixed https://github.com/influxdata/giraffe/issues/284
-  const fixNeedleGaugeIssue = (
-    gaugeDef: Partial<GaugeLayerConfig>,
-    table: GirrafeTable | null
-  ): [Partial<GaugeLayerConfig>, GirrafeTable | null] => {
-    if (!table) return [gaugeDef, table]
-    const value = (table.getColumn('_value') as number[])[0]
-    if (value < 1000) return [gaugeDef, table]
-
-    const gaugeDefCopy = {...gaugeDef}
-
-    gaugeDefCopy.tickSuffix = `0${gaugeDef.tickSuffix || ''}`
-    gaugeDefCopy.suffix = `0${gaugeDef.suffix || ''}`
-    gaugeDefCopy.gaugeColors = (
-      gaugeDef.gaugeColors || []
-    ).map(({value, ...rest}) => ({value: Math.trunc(value / 10), ...rest}))
-
-    return [
-      gaugeDefCopy,
-      newTable(1).addColumn('_value', 'number', [Math.trunc(value / 10)]),
-    ]
-  }
-
   const gauges = deviceData?.measurementsTable?.length && (
     <Row gutter={[4, 8]}>
       {measurementsDefinitions.map(({gauge, title, column}) => (
@@ -268,12 +244,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           {
             <Card title={title}>
               {renderGauge(
-                ...fixNeedleGaugeIssue(
-                  gauge,
-                  tableGetColumnLatestVal(
-                    deviceData.measurementsTable as GirrafeTable,
-                    column
-                  )
+                gauge,
+                tableGetColumnLatestVal(
+                  deviceData.measurementsTable as GirrafeTable,
+                  column
                 )
               )}
             </Card>
