@@ -17,6 +17,8 @@ import {
   fetchDeviceConfig,
   fetchDeviceData,
   fetchDeviceMeasurements,
+  fetchDeviceDataFieldLast,
+  DeviceConfig,
 } from '../util/communication'
 import {
   SettingFilled,
@@ -25,7 +27,7 @@ import {
 } from '@ant-design/icons'
 import CollapsePanel from 'antd/lib/collapse/CollapsePanel'
 import {DeviceInfo} from './DevicesPage'
-import {getXDomainFromTable, tableGetColumnLatestVal} from '../util/tableUtils'
+import {getXDomainFromTable} from '../util/tableUtils'
 
 interface Props {
   deviceId?: string
@@ -51,15 +53,26 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   // fetch device configuration and data
   useEffect(() => {
+    const fetchDeviceLastValues = async (config: DeviceConfig) => {
+      return Promise.all(
+        measurementsDefinitions.map(async ({column}) => ({
+          column,
+          table: await fetchDeviceDataFieldLast(config, column),
+        }))
+      )
+    }
+
     const fetchData = async () => {
       setLoading(true)
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId)
-        const [deviceData, table] = await Promise.all([
+        const [deviceData, table, lastValues] = await Promise.all([
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig, timeStart),
+          fetchDeviceLastValues(deviceConfig),
         ])
         deviceData.measurementsTable = table
+        deviceData.measurementsLastValues = lastValues
         setDeviceData(deviceData)
       } catch (e) {
         console.error(e)
@@ -203,7 +216,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const renderGauge = (
     gaugeDefinition: Partial<GaugeLayerConfig>,
-    table: GirrafeTable | null
+    table: GirrafeTable | undefined
   ) => {
     const gaugeDefaults: GaugeLayerConfig = {
       type: 'gauge',
@@ -222,7 +235,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
     return (
       <div style={{width: '100%', height: 150}}>
-        {table ? (
+        {table?.length ? (
           <Plot
             config={{
               showAxes: false,
@@ -239,21 +252,17 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const gauges = deviceData?.measurementsTable?.length && (
     <Row gutter={[4, 8]}>
-      {measurementsDefinitions.map(({gauge, title, column}) => (
-        <Col xs={24} md={12} xl={6}>
-          {
-            <Card title={title}>
-              {renderGauge(
-                gauge,
-                tableGetColumnLatestVal(
-                  deviceData.measurementsTable as GirrafeTable,
-                  column
-                )
-              )}
-            </Card>
-          }
-        </Col>
-      ))}
+      {measurementsDefinitions.map(({gauge, title, column}) => {
+        const lastValueTable = deviceData?.measurementsLastValues?.find(
+          (x) => x.column === column
+        )?.table
+
+        return (
+          <Col xs={24} md={12} xl={6}>
+            {<Card title={title}>{renderGauge(gauge, lastValueTable)}</Card>}
+          </Col>
+        )
+      })}
     </Row>
   )
 

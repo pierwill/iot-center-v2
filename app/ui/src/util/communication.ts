@@ -17,6 +17,7 @@ export interface DeviceData {
   maxTime?: string
   count?: string
   measurementsTable?: GirafeTable
+  measurementsLastValues?: {column: string; table: GirafeTable}[]
 }
 export type TProgressFn = (
   percent: number,
@@ -99,6 +100,34 @@ export const fetchDeviceMeasurements = async (
     |> filter(fn: (r) => r._measurement == "environment")
     |> filter(fn: (r) => r.clientId == ${id})
     |> v1.fieldsAsCols()`
+  )
+  return result
+}
+
+export const fetchDeviceDataFieldLast = async (
+  config: DeviceConfig,
+  field: string,
+  maxPastTime = '-1m'
+): Promise<GirafeTable> => {
+  const {
+    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
+    influx_token: token,
+    influx_org: org,
+    influx_bucket: bucket,
+    id,
+  } = config
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
+  const result = await queryTable(
+    queryApi,
+    flux`
+  import "influxdata/influxdb/v1"
+  from(bucket: ${bucket})
+    |> range(start: ${fluxDuration(maxPastTime)})
+    |> filter(fn: (r) => r.clientId == ${id})
+    |> filter(fn: (r) => r._measurement == "environment")
+    |> filter(fn: (r) => r["_field"] == ${field})
+    |> keep(columns: ["_value", "_time"])
+    |> last()`
   )
   return result
 }
