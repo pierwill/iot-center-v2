@@ -4,7 +4,7 @@ ESP8266 and ESP32 devices supported
 
 ## Quick Start
 
-ToDo
+Use Arduino IDE, select right device and update WiFI settings and IoT Center locaction configuration in client_arduino.ino and connected PINs and used sensors inside sensors.ino
 
 ## License
 
