@@ -16,6 +16,7 @@ import {
   DoubleRightOutlined,
   FastForwardOutlined,
   AreaChartOutlined,
+  PieChartOutlined,
 } from '@ant-design/icons'
 
 import HomePage from './pages/HomePage'
@@ -24,6 +25,7 @@ import DevicePage from './pages/DevicePage'
 import NotFoundPage from './pages/NotFoundPage'
 import DashboardPage from './pages/DashboardPage'
 import {VIRTUAL_DEVICE} from './util/communication'
+import OverviewPage from './pages/OverviewPage'
 
 const {Sider} = Layout
 const PAGE_HELP: Record<string, {file: string}> = {
@@ -96,6 +98,9 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             >
               <NavLink to="/devices/virtual_device">Virtual Device</NavLink>
             </Menu.Item>
+            <Menu.Item key="/overview" icon={<PieChartOutlined />}>
+              <NavLink to="/overview">Overview</NavLink>
+            </Menu.Item>
             <Menu.Item key="/dashboard" icon={<AreaChartOutlined />}>
               <NavLink to="/dashboard">Dashboard</NavLink>
             </Menu.Item>
@@ -116,6 +121,7 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             to={`/dashboard/${VIRTUAL_DEVICE}`}
           />
           <Route exact path="/dashboard/:deviceId" component={DashboardPage} />
+          <Route exact path="/overview" component={OverviewPage} />
           <Route path="*" component={NotFoundPage} />
         </Switch>
         {helpText ? (
