@@ -1,15 +1,15 @@
-#include <BME280I2C.h>
-#include <ClosedCube_HDC1080.h>
-#include <SparkFunCCS811.h>
-#include <SparkFun_Si7021_Breakout_Library.h>
-#include <Adafruit_BME680.h>
-
 //Define pin number e where DHTxx device is connected and and device type, if you comment the pin, the DHTxx code will be excluded
 //#define DHT_PIN 14
 #define DHTTYPE DHT22   // DHT11, DHT 21 (AM2301), DHT 22  (AM2302), AM2321
 
 //Define pin number where one wire device(s) are connected, if you comment the pin, the onewire code will be excluded
-#define ONE_WIRE_PIN 4
+#define ONE_WIRE_PIN 4  //D2
+
+#include <BME280I2C.h>
+#include <ClosedCube_HDC1080.h>
+#include <SparkFunCCS811.h>
+#include <SparkFun_Si7021_Breakout_Library.h>
+#include <Adafruit_BME680.h>
 
 #if defined(ONE_WIRE_PIN)
   #include <OneWire.h>
@@ -89,7 +89,7 @@ void setupSensors() {
   report_i2c();
 
   #if defined(ESP32)
-  // Initialising GPS
+  // Initialising GPS and power management controller
   if (!axp.begin(Wire, AXP192_SLAVE_ADDRESS)) { //I2C 0x34
     Serial.println("Found AXP192 power controller");
     axp.setPowerOutPut(AXP192_LDO2, AXP202_ON);
@@ -180,8 +180,12 @@ void setupSensors() {
 }
 
 void readSensors() {
-  temp = NAN; //Clear temperature
-  
+  temp = NAN; //Clear measurements
+  hum = NAN;
+  pres = NAN;
+  co2 = NAN;
+  tvoc = NAN;
+
   #if defined(ESP32)
   //Read GPS location
   if (bGPS) {
@@ -197,6 +201,7 @@ void readSensors() {
   #endif
 
 #if defined(ONE_WIRE_PIN)
+  //Read temperature from the DS1820 sensor
   ow_sensors.requestTemperatures();
   oneWireDevices = ow_sensors.getDeviceCount();
   for ( uint8_t i1 = 0; i1 < oneWireDevices; i1++) {
@@ -208,20 +213,23 @@ void readSensors() {
 #endif
 
 #if defined(DHT_PIN)
+  //Read temperature and humidity from the DHTxx sensor
   if (bDHT) {
     temp = dht.readTemperature(); // Gets the values of the temperature
     hum = dht.readHumidity(); // Gets the values of the humidity
   }
 #endif
 
+  //Read the BME680 sensor
   if (bBME680) {
     if (bme680.performReading()) {
       temp = bme680.temperature;
       hum = bme680.humidity;
       pres = bme680.pressure / 100.0;
       co2 = (bme680.gas_resistance / 1000.0) + 400;
-    } else
-      Serial.println("Failed to perform reading :(");
+    } else {
+      Serial.println("Failed to perform reading from BME680");
+    }
   }
   
   //Read the BME280/BMP280 sensor

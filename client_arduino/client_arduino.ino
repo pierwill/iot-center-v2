@@ -158,8 +158,9 @@ configuration_refresh: 3600
 }
 
 void setup() {
+  //Prepare logging
   Serial.begin(115200);
-  delay(1000);
+  delay(500);
   
   // Initialize sensors
   setupSensors();
@@ -179,19 +180,20 @@ void setup() {
   // Load configuration including time
   configSync();
 
-  // Add tags
+  // Add InfluxDB tags
   envData.addTag("clientId", DEVICE_UUID);
   envData.addTag("device", DEVICE);
   envData.addTag("sensor", getSensorsList());
 }
 
 void loop() {
+  //Read actual time to calculate final delay
   unsigned long loopTime = millis();
   
-  // Read values from all the sensors
+  // Read measurements from all the sensors
   readSensors();
   
-  // Report measured values
+  // Report measured values. If NAN, addField will skip it
   envData.setTime(time(nullptr));
   envData.addField("Temperature", temp);
   envData.addField("Humidity", hum);
@@ -210,7 +212,7 @@ void loop() {
   // Write point into buffer
   unsigned long writeTime = millis();
 
-  if (!isnan(temp)) //Write only if we have valid temperature
+  if (!isnan(temp)) //Write to InfluxDB only if we have a valid temperature
     client.writePoint(envData);
   else
     Serial.println("Error, missing temperature, skipping write");
@@ -224,20 +226,20 @@ void loop() {
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
   if (!client.flushBuffer()) {
-    Serial.print("InfluxDB flush failed: ");
+    Serial.print("Error, InfluxDB flush failed: ");
     Serial.println(client.getLastErrorMessage());
     Serial.print("Full buffer: ");
     Serial.println(client.isBufferFull() ? "Yes" : "No");
   }
 
-  // Sync time for batching once per hour
+  // Test wheter synce sync configuration and configuration from IoT center
   if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000)))
     configSync();   
 
   // Calculate sleep time
   long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
 
-  if (delayTime < 0) {
+  if (delayTime <= 0) {
     Serial.println("Warning, too slow processing");
     delayTime = 0; 
   }
@@ -246,7 +248,8 @@ void loop() {
     Serial.println("Error, time overflow");
     delayTime = measurementInterval * 1000;
   }
-    
+  
+  // Sleep remaining time  
   Serial.print("Wait: ");
   Serial.println( delayTime);
   delay(delayTime);
