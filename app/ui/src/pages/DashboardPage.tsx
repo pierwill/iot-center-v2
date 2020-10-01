@@ -1,5 +1,15 @@
 import React, {useState, useEffect, FunctionComponent} from 'react'
-import {Tooltip, Button, Card, Row, Col, Collapse, Empty, Select} from 'antd'
+import {
+  Tooltip,
+  Button,
+  Card,
+  Row,
+  Col,
+  Collapse,
+  Empty,
+  Select,
+  Divider,
+} from 'antd'
 import {RouteComponentProps} from 'react-router-dom'
 
 import PageContent, {Message} from './PageContent'
@@ -216,7 +226,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const renderGauge = (
     gaugeDefinition: Partial<GaugeLayerConfig>,
-    table: GirrafeTable | undefined
+    table: GirrafeTable
   ) => {
     const gaugeDefaults: GaugeLayerConfig = {
       type: 'gauge',
@@ -235,35 +245,44 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
     return (
       <div style={{width: '100%', height: 150}}>
-        {table?.length ? (
-          <Plot
-            config={{
-              showAxes: false,
-              layers: [{...gaugeDefaults, ...gaugeDefinition}],
-              table,
-            }}
-          />
-        ) : (
-          <Empty />
-        )}
+        <Plot
+          config={{
+            showAxes: false,
+            layers: [{...gaugeDefaults, ...gaugeDefinition}],
+            table,
+          }}
+        />
       </div>
     )
   }
 
-  const gauges = deviceData?.measurementsTable?.length && (
-    <Row gutter={[4, 8]}>
-      {measurementsDefinitions.map(({gauge, title, column}) => {
-        const lastValueTable = deviceData?.measurementsLastValues?.find(
-          (x) => x.column === column
-        )?.table
+  const gaugeMissingValues: string[] = []
+  const gauges = deviceData?.measurementsLastValues?.length && (
+    <>
+      <Row gutter={[4, 8]}>
+        {measurementsDefinitions.map(({gauge, title, column}) => {
+          const lastValueTable = deviceData?.measurementsLastValues?.find(
+            (x) => x.column === column
+          )?.table
 
-        return (
-          <Col xs={24} md={12} xl={6}>
-            {<Card title={title}>{renderGauge(gauge, lastValueTable)}</Card>}
-          </Col>
-        )
-      })}
-    </Row>
+          if (!lastValueTable?.length) {
+            gaugeMissingValues.push(title)
+            return
+          }
+
+          return (
+            <Col xs={24} md={12} xl={6}>
+              <Card title={title}>{renderGauge(gauge, lastValueTable)}</Card>
+            </Col>
+          )
+        })}
+      </Row>
+      <Divider style={{color: 'rgba(0, 0, 0, .2)'}} orientation="right">
+        {gaugeMissingValues.length
+          ? `Gauge missing values: ${gaugeMissingValues.join(', ')}`
+          : undefined}
+      </Divider>
+    </>
   )
 
   const renderPlot = (
@@ -278,46 +297,61 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       interpolation: 'natural',
     }
 
-    const hasData = !!table.getColumn(column)
-
     return (
       <div style={{width: '100%', height: 200}}>
-        {hasData ? (
-          <Plot
-            config={{
-              xDomain: xDomain,
-              onSetXDomain: setXDomain,
-              onResetXDomain: resetXDomain,
-              layers: [{...lineDefaults, ...lineDefinition}],
-              table,
-              valueFormatters: {
-                _time: timeFormatter({
-                  timeZone: 'UTC',
-                  format: 'YYYY-MM-DD HH:mm:ss ZZ',
-                }),
-              },
-            }}
-          />
-        ) : (
-          <Empty />
-        )}
+        <Plot
+          config={{
+            xDomain: xDomain,
+            onSetXDomain: setXDomain,
+            onResetXDomain: resetXDomain,
+            layers: [{...lineDefaults, ...lineDefinition}],
+            table,
+            valueFormatters: {
+              _time: timeFormatter({
+                timeZone: 'UTC',
+                format: 'YYYY-MM-DD HH:mm:ss ZZ',
+              }),
+            },
+          }}
+        />
       </div>
     )
   }
 
-  const plots = deviceData?.measurementsTable?.length && (
-    <Collapse defaultActiveKey={measurementsDefinitions.map((_, i) => i)}>
-      {measurementsDefinitions.map(({line, title, column}, i) => (
-        <CollapsePanel key={i} header={title}>
-          {renderPlot(
-            line,
-            deviceData.measurementsTable as GirrafeTable,
-            column
-          )}
-        </CollapsePanel>
-      ))}
-    </Collapse>
-  )
+  const plots =
+    deviceData?.measurementsTable?.length &&
+    (() => {
+      const table = deviceData.measurementsTable as GirrafeTable
+      const measurementsWithValues = measurementsDefinitions.filter(
+        ({column}) => table.getColumn(column)
+      )
+      const measurementsNoValues = measurementsDefinitions.filter(
+        ({column}) => !table.getColumn(column)
+      )
+
+      return (
+        <>
+          <Collapse defaultActiveKey={measurementsWithValues.map((_, i) => i)}>
+            {measurementsWithValues.map(({line, title, column}, i) => (
+              <CollapsePanel key={i} header={title}>
+                {renderPlot(line, table, column)}
+              </CollapsePanel>
+            ))}
+          </Collapse>
+          {measurementsNoValues.length ? (
+            <Collapse>
+              {measurementsNoValues.map(({title}, i) => (
+                <CollapsePanel
+                  key={i}
+                  disabled={true}
+                  header={`${title} - No data`}
+                />
+              ))}
+            </Collapse>
+          ) : undefined}
+        </>
+      )
+    })()
 
   const timeOptions: {label: string; value: string}[] = [
     {label: 'Past 5m', value: '-5m'},
