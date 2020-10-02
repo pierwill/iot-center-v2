@@ -59,9 +59,9 @@ export const fetchDeviceData = async (
   const results = await queryApi.collectRows<any>(flux`
 from(bucket: ${bucket})
   |> range(start: -30d)
-  |> filter(fn: (r) => r._measurement == "air")
+  |> filter(fn: (r) => r._measurement == "environment")
   |> filter(fn: (r) => r.clientId == ${id})
-  |> filter(fn: (r) => r._field == "temperature")
+  |> filter(fn: (r) => r._field == "Temperature")
   |> group()
   |> reduce(
         fn: (r, accumulator) => ({
