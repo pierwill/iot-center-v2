@@ -1,4 +1,4 @@
-import {InfluxDB, flux, Point, fluxDuration} from '@influxdata/influxdb-client'
+import {InfluxDB, flux, fluxDuration} from '@influxdata/influxdb-client'
 
 import {Table as GirafeTable} from '@influxdata/giraffe'
 import {queryTable} from '../util/queryTable'
@@ -130,77 +130,4 @@ export const fetchDeviceDataFieldLast = async (
     |> last()`
   )
   return result
-}
-
-export const writeEmulatedData = async (
-  state: DeviceData,
-  onProgress: TProgressFn
-): Promise<number> => {
-  const {
-    // influx_url: url, // use '/influx' proxy to avoid problems with InfluxDB v2 Beta (Docker)
-    influx_token: token,
-    influx_org: org,
-    influx_bucket: bucket,
-    id,
-  } = state.config
-  // calculate window to emulate writes
-  const toTime = Math.trunc(Date.now() / 60_000) * 60_000
-  let lastTime = state.maxTime
-    ? Math.trunc(Date.parse(state.maxTime) / 60_000) * 60_000
-    : 0
-  if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
-    lastTime = toTime - 30 * 24 * 60 * 60 * 1000
-  }
-  const totalPoints = Math.trunc((toTime - lastTime) / 60_000)
-  let pointsWritten = 0
-  if (totalPoints > 0) {
-    const batchSize = 2000
-    const influxDB = new InfluxDB({url: '/influx', token})
-    const writeApi = influxDB.getWriteApi(org, bucket, 'ms', {
-      batchSize: batchSize + 1,
-      defaultTags: {clientId: id},
-    })
-    try {
-      // write random temperatures
-      const point = new Point('air') // reuse the same point to spare memory
-      onProgress(0, 0, totalPoints)
-      while (lastTime < toTime) {
-        lastTime += 60_000 // emulate next minute
-        // calculate temperature as a predictable continuous functionto look better
-        let dateTemperature =
-          10 +
-          10 * Math.sin((((lastTime / DAY_MILLIS) % 30) / 30) * 2 * Math.PI)
-        // it is much warmer around lunch time
-        dateTemperature +=
-          10 +
-          10 *
-            Math.sin(
-              ((lastTime % DAY_MILLIS) / DAY_MILLIS) * 2 * Math.PI - Math.PI / 2
-            )
-        point
-          .floatField(
-            'temperature',
-            Math.trunc((dateTemperature + Math.random()) * 10) / 10
-          )
-          .timestamp(lastTime)
-        writeApi.writePoint(point)
-
-        pointsWritten++
-        if (pointsWritten % batchSize === 0) {
-          await writeApi.flush()
-          onProgress(
-            (pointsWritten / totalPoints) * 100,
-            pointsWritten,
-            totalPoints
-          )
-        }
-      }
-      await writeApi.flush()
-    } finally {
-      await writeApi.close()
-    }
-    onProgress(100, pointsWritten, totalPoints)
-  }
-
-  return pointsWritten
 }
