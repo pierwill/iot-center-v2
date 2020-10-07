@@ -46,6 +46,7 @@ int measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
 //Time of the last config load
 unsigned long loadConfigTime;
 
+//Load value for specific parameter
 String loadParameter( const String& response, const char* param) {
   int i = response.indexOf(param);
   if (i == -1) {
@@ -56,12 +57,15 @@ String loadParameter( const String& response, const char* param) {
   return response.substring( response.indexOf(":", i) + 2, response.indexOf("\n", i));  
 }
 
+//Convert IP address into String
 String IpAddress2String(const IPAddress& ipAddress) {
   return String(ipAddress[0]) + String(".") + String(ipAddress[1]) + String(".") + String(ipAddress[2]) + String(".") + String(ipAddress[3]); 
 }
 
+//Load configuration from IoT Center
 void configSync() {
 /*  
+Example response:
 influx_url: http://localhost:9999
 influx_org: my-org
 influx_token: x0102CguGaU7qoJWftHUTV5wk5J-s6pZ_4WAIQjAmqU9zEXESKh4Am1p8URyNx9nfeU9TuGMtFUH85crAHO1IQ==
@@ -96,7 +100,7 @@ configuration_refresh: 3600
   }
   http.end();
 
-  //Parse response
+  //Parse response, if exists
   if ( payload.length() > 0) {
     
     //Sync time from IoT Cenetr
@@ -140,7 +144,7 @@ configuration_refresh: 3600
     htOpt.connectionReuse(measurementInterval <= 20);
     client.setHTTPOptions(htOpt);
 
-    // Check server connection
+    // Check InfluxDB server connection
     if (client.validateConnection()) {
       Serial.print("Connected to InfluxDB: ");
       Serial.println(client.getServerUrl());
@@ -157,6 +161,7 @@ configuration_refresh: 3600
   loadConfigTime = millis();
 }
 
+// Arduino setup
 void setup() {
   //Prepare logging
   Serial.begin(115200);
@@ -186,8 +191,9 @@ void setup() {
   envData.addTag("sensor", getSensorsList());
 }
 
+// Arduino loop
 void loop() {
-  //Read actual time to calculate final delay
+  // Read actual time to calculate final delay
   unsigned long loopTime = millis();
   
   // Read measurements from all the sensors
