@@ -63,11 +63,14 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   // fetch device configuration and data
   useEffect(() => {
-    const fetchDeviceLastValues = async (config: DeviceConfig) => {
+    const fetchDeviceLastValues = async (
+      config: DeviceConfig,
+      timeStart: string
+    ) => {
       return Promise.all(
         measurementsDefinitions.map(async ({column}) => ({
           column,
-          table: await fetchDeviceDataFieldLast(config, column),
+          table: await fetchDeviceDataFieldLast(config, column, timeStart),
         }))
       )
     }
@@ -79,7 +82,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
         const [deviceData, table, lastValues] = await Promise.all([
           fetchDeviceData(deviceConfig),
           fetchDeviceMeasurements(deviceConfig, timeStart),
-          fetchDeviceLastValues(deviceConfig),
+          fetchDeviceLastValues(deviceConfig, timeStart),
         ])
         deviceData.measurementsTable = table
         deviceData.measurementsLastValues = lastValues
@@ -256,6 +259,18 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     )
   }
 
+  const renderGaugeTime = (time: number) => {
+    const now = Date.now()
+    const diff = now - time
+
+    if (diff < 10_000) return <div style={{color: 'green'}}>just now</div>
+    if (diff < 60_000)
+      return <div style={{color: 'green'}}>less than minute ago</div>
+    if (diff < 600_000)
+      return <div style={{color: '#ffbb77'}}>more than minute ago</div>
+    return <div style={{color: 'red'}}>long time ago</div>
+  }
+
   const gaugeMissingValues: string[] = []
   const gauges = deviceData?.measurementsLastValues?.length && (
     <>
@@ -270,9 +285,20 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
             return
           }
 
+          const [time] = lastValueTable.getColumn('_time') as number[]
+
           return (
             <Col xs={24} md={12} xl={6}>
-              <Card title={title}>{renderGauge(gauge, lastValueTable)}</Card>
+              <Card
+                title={title}
+                extra={
+                  <Tooltip title={new Date(time).toISOString()}>
+                    {renderGaugeTime(time)}
+                  </Tooltip>
+                }
+              >
+                {renderGauge(gauge, lastValueTable)}
+              </Card>
             </Col>
           )
         })}
