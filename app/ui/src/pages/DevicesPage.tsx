@@ -18,10 +18,10 @@ import {
   ExclamationCircleFilled,
   SettingFilled,
 } from '@ant-design/icons'
-import { fetchDeviceConfig } from '../util/communication'
-import { flux, InfluxDB } from '@influxdata/influxdb-client'
-import { queryTable } from '../util/queryTable'
-import { timeFormatter } from '@influxdata/giraffe'
+import {fetchDeviceConfig} from '../util/communication'
+import {flux, InfluxDB} from '@influxdata/influxdb-client'
+import {queryTable} from '../util/queryTable'
+import {timeFormatter} from '@influxdata/giraffe'
 
 export interface DeviceInfo {
   key: string
@@ -45,7 +45,7 @@ const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
     influx_bucket: bucket,
     id,
   } = config
-  const queryApi = new InfluxDB({ url: '/influx', token }).getQueryApi(org)
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
   const result = await queryTable(
     queryApi,
     flux`
@@ -59,7 +59,7 @@ const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
     `
   )
   const [lastEntry] = result?.getColumn('_time') as number[]
-  return { lastEntry, deviceId }
+  return {lastEntry, deviceId}
 }
 
 const NO_ENTRIES: Array<LastEntryTime> = []
@@ -85,7 +85,7 @@ const DevicesPage: FunctionComponent = () => {
 
         setLastEntries(
           await Promise.all(
-            data.map(({ deviceId }) => fetchLastEntryTime(deviceId))
+            data.map(({deviceId}) => fetchLastEntryTime(deviceId))
           )
         )
       } catch (e) {
@@ -173,7 +173,7 @@ const DevicesPage: FunctionComponent = () => {
       title: 'Last Entry',
       dataIndex: 'deviceId',
       render: (id: string) => {
-        const lastEntry = lastEntries.find(({ deviceId }) => deviceId === id)
+        const lastEntry = lastEntries.find(({deviceId}) => deviceId === id)
           ?.lastEntry
         if (lastEntry != null && lastEntry !== 0)
           return timeFormatter({
