@@ -59,7 +59,7 @@ const DevicesPage: FunctionComponent = () => {
   const removeAuthorization = async (device: DeviceInfo) => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/devices/${device.key}`, {
+      const response = await fetch(`/api/devices/${device.deviceId}`, {
         method: 'DELETE',
       })
       if (response.status >= 300) {

@@ -92,13 +92,22 @@ router.get(
   })
 )
 
-// return all devices as []{key: string, deviceId:string, createdAt: string}
+// delete device supplied by the given deviceId
 router.delete(
   '/devices/:deviceId',
   handleError(async (req, res) => {
-    await deleteAuthorization(req.params.deviceId)
-    res.status(201)
-    res.send('Device authorization removed')
+    const deviceId = req.params.deviceId
+    const authorizations = await getIoTAuthorizations()
+    for (const a of authorizations) {
+      if (getDeviceId(a) === deviceId) {
+        await deleteAuthorization(a.id)
+        res.status(204)
+        res.send('Device authorization removed')
+        return
+      }
+    }
+    res.status(404)
+    res.send(`Device ${deviceId} not found!`)
   })
 )
 
