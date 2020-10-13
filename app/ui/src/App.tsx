@@ -128,9 +128,6 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             <Menu.Item key="/dashboard" icon={<AreaChartOutlined />}>
               <NavLink to="/dashboard">Dashboard</NavLink>
             </Menu.Item>
-            <Menu.Item key="/todo" icon={<BugOutlined />}>
-              <NavLink to="/todo">ToDo</NavLink>
-            </Menu.Item>
             {}
           </Menu>
         </Sider>
