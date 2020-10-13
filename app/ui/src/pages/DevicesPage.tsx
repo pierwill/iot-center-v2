@@ -18,6 +18,10 @@ import {
   ExclamationCircleFilled,
   SettingFilled,
 } from '@ant-design/icons'
+import {fetchDeviceConfig} from '../util/communication'
+import {flux, InfluxDB} from '@influxdata/influxdb-client'
+import {queryTable} from '../util/queryTable'
+import {timeFormatter} from '@influxdata/giraffe'
 
 export interface DeviceInfo {
   key: string
@@ -27,11 +31,46 @@ export interface DeviceInfo {
 
 const NO_DEVICES: Array<DeviceInfo> = []
 
+interface LastEntryTime {
+  deviceId: string
+  lastEntry?: number
+}
+
+const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
+  const config = await fetchDeviceConfig(deviceId)
+  const {
+    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
+    influx_token: token,
+    influx_org: org,
+    influx_bucket: bucket,
+    id,
+  } = config
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
+  const result = await queryTable(
+    queryApi,
+    flux`
+  import "influxdata/influxdb/v1"
+  from(bucket: ${bucket})
+    |> range(start: -1y)
+    |> filter(fn: (r) => r.clientId == ${id})
+    |> filter(fn: (r) => r._measurement == "environment")
+    |> keep(columns: ["_time"])
+    |> max(column: "_time")
+    `
+  )
+  const [lastEntry] = result?.getColumn('_time') as number[]
+  return {lastEntry, deviceId}
+}
+
+const NO_ENTRIES: Array<LastEntryTime> = []
+
 const DevicesPage: FunctionComponent = () => {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<Message | undefined>(undefined)
   const [data, setData] = useState(NO_DEVICES)
   const [dataStamp, setDataStamp] = useState(0)
+  const [lastEntries, setLastEntries] = useState(NO_ENTRIES)
+
   useEffect(() => {
     setLoading(true)
     const fetchDevices = async () => {
@@ -41,8 +80,14 @@ const DevicesPage: FunctionComponent = () => {
           const text = await response.text()
           throw new Error(`${response.status} ${text}`)
         }
-        const data = await response.json()
+        const data = (await response.json()) as Array<DeviceInfo>
         setData(data)
+
+        setLastEntries(
+          await Promise.all(
+            data.map(({deviceId}) => fetchLastEntryTime(deviceId))
+          )
+        )
       } catch (e) {
         setMessage({
           title: 'Cannot fetch data',
@@ -123,6 +168,19 @@ const DevicesPage: FunctionComponent = () => {
     {
       title: 'Registration Time',
       dataIndex: 'createdAt',
+    },
+    {
+      title: 'Last Entry',
+      dataIndex: 'deviceId',
+      render: (id: string) => {
+        const lastEntry = lastEntries.find(({deviceId}) => deviceId === id)
+          ?.lastEntry
+        if (lastEntry != null && lastEntry !== 0)
+          return timeFormatter({
+            timeZone: 'UTC',
+            format: 'YYYY-MM-DD HH:mm:ss ZZ',
+          })(lastEntry)
+      },
     },
     {
       title: '',

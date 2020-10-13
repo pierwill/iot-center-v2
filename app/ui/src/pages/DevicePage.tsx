@@ -19,7 +19,11 @@ import {
   generateCO2,
   generateTVOC,
 } from '../util/generateValue'
-import {AreaChartOutlined} from '@ant-design/icons'
+import {
+  AreaChartOutlined,
+  InfoCircleFilled,
+  ReloadOutlined,
+} from '@ant-design/icons'
 
 interface DeviceConfig {
   influx_url: string
@@ -201,6 +205,8 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
     deviceId === VIRTUAL_DEVICE ||
     new URLSearchParams(location.search).get('write') === 'true'
 
+  const isVirtualDevice = deviceId === VIRTUAL_DEVICE
+
   // fetch device configuration and data
   useEffect(() => {
     const fetchData = async () => {
@@ -265,30 +271,59 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
     }
   }
 
+  const pageControls = (
+    <>
+      {writeAllowed ? (
+        <Tooltip
+          title="Write Missing Data for the last 30 days"
+          placement="top"
+        >
+          <Button onClick={writeData} disabled={progress !== -1}>
+            Write New Data
+          </Button>
+        </Tooltip>
+      ) : undefined}
+      <Tooltip title="Reload" placement="topRight">
+        <Button
+          disabled={loading}
+          loading={loading}
+          onClick={() => setDataStamp(dataStamp + 1)}
+          icon={<ReloadOutlined />}
+        />
+      </Tooltip>
+      <Tooltip title="Go to device dashboard" placement="topRight">
+        <Button
+          type="primary"
+          icon={<AreaChartOutlined />}
+          href={`/dashboard/${deviceId}`}
+        ></Button>
+      </Tooltip>
+    </>
+  )
+
   return (
     <PageContent
       title={
-        deviceId === VIRTUAL_DEVICE ? 'Virtual Device' : `Device ${deviceId}`
+        isVirtualDevice ? (
+          <>
+            {'Virtual Device'}
+            <Tooltip title="This page writes temperature measurements for the last 30 days from an emulated device, the temperature is reported every minute.">
+              <InfoCircleFilled style={{fontSize: '1em', marginLeft: 5}} />
+            </Tooltip>
+          </>
+        ) : (
+          `Device ${deviceId}`
+        )
       }
       message={message}
       spin={loading}
-      titleExtra={
-        <Tooltip title="Go to device dashboard" placement="topRight">
-          <Button
-            type="primary"
-            icon={<AreaChartOutlined />}
-            href={`/dashboard/${deviceId}`}
-          ></Button>
-        </Tooltip>
-      }
+      titleExtra={pageControls}
     >
       {deviceId === VIRTUAL_DEVICE ? (
         <>
-          <p>
-            This page writes temperature measurements for the last 30 days from
-            an emulated device, the temperature is reported every minute.
-          </p>
-          <br />
+          <div style={{visibility: progress >= 0 ? 'visible' : 'hidden'}}>
+            <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
+          </div>
         </>
       ) : undefined}
       <Descriptions title="Device Configuration">
@@ -324,33 +359,6 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
           {deviceData?.maxValue}
         </Descriptions.Item>
       </Descriptions>
-      {writeAllowed ? (
-        <>
-          <br />
-          <div style={{visibility: progress >= 0 ? 'visible' : 'hidden'}}>
-            <Progress percent={progress >= 0 ? Math.trunc(progress) : 0} />
-          </div>
-          <Tooltip title="Write Missing Data for the last 30 days">
-            <>
-              <Button
-                onClick={writeData}
-                disabled={progress !== -1}
-                style={{marginRight: '8px'}}
-              >
-                Write New Data
-              </Button>
-            </>
-          </Tooltip>
-        </>
-      ) : undefined}
-      <Tooltip title="Reload Device Data">
-        <Button
-          onClick={() => setDataStamp(dataStamp + 1)}
-          style={{marginRight: '8px'}}
-        >
-          Reload
-        </Button>
-      </Tooltip>
     </PageContent>
   )
 }

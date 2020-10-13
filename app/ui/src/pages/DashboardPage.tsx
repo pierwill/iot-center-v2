@@ -390,7 +390,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     {label: 'Past 30d', value: '-30d'},
   ]
 
-  const dashboardControls = (
+  const pageControls = (
     <>
       <Tooltip title="Choose device" placement="left">
         <Select
@@ -461,7 +461,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           `Device ${deviceId}`
         )
       }
-      titleExtra={dashboardControls}
+      titleExtra={pageControls}
       message={message}
       spin={loading}
       forceShowScroll={true}
