@@ -6,6 +6,8 @@ import {
   RouteComponentProps,
   withRouter,
   NavLink,
+  matchPath,
+  RouteProps,
 } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import './App.css'
@@ -26,12 +28,37 @@ import DashboardPage from './pages/DashboardPage'
 import {VIRTUAL_DEVICE} from './util/communication'
 
 const {Sider} = Layout
-const PAGE_HELP: Record<string, {file: string}> = {
-  '/devices': {file: '/help/DevicesPage.md'},
-  '/devices/virtual_device': {file: '/help/VirtualDevicePage.md'},
-}
+const PAGE_HELP: Array<{
+  file: string
+  matcher: string | RouteProps | string[]
+}> = [
+  {
+    file: '/help/DevicesPage.md',
+    matcher: {
+      path: '/devices',
+      exact: true,
+    },
+  },
+  {
+    file: '/help/VirtualDevicePage.md',
+    matcher: '/devices/virtual_device',
+  },
+  {
+    file: '/help/DevicePage.md',
+    matcher: '/devices/:device',
+  },
+  {
+    file: '/help/DashboardPage.md',
+    matcher: '/dashboard/:device',
+  },
+]
 
-function useHelpCollapsed(): [boolean, (v: boolean) => void] {
+const getPageHelp = (url: string) =>
+  PAGE_HELP.filter(({matcher}) => matchPath(url, matcher)).map(
+    ({file}) => file
+  )[0]
+
+const useHelpCollapsed = (): [boolean, (v: boolean) => void] => {
   const [helpCollapsed, setHelpCollapsed] = useState(
     localStorage?.getItem('helpCollapsed') === 'true'
   )
@@ -46,14 +73,16 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
   const [menuCollapsed, setMenuCollapsed] = useState(false)
   const [helpCollapsed, setHelpCollapsed] = useHelpCollapsed()
   const [helpText, setHelpText] = useState('')
-  const page = PAGE_HELP[props.location.pathname]
+
+  const help = getPageHelp(props.location.pathname)
+
   useEffect(() => {
     setHelpText('')
-    if (page) {
+    if (help) {
       // load markdown from file
       ;(async () => {
         try {
-          const response = await fetch(page.file)
+          const response = await fetch(help)
           const txt = await response.text()
           setHelpText((txt ?? '').startsWith('<!') ? 'HELP NOT FOUND' : txt)
         } catch (e) {
@@ -61,7 +90,7 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
         }
       })()
     }
-  }, [page])
+  }, [help])
 
   return (
     <div className="App">
