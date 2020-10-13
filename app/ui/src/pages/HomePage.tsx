@@ -1,4 +1,4 @@
-import React, { FunctionComponent, useEffect, useState } from 'react'
+import React, {FunctionComponent, useEffect, useState} from 'react'
 import ReactMarkdown from 'react-markdown'
 import PageContent from './PageContent'
 
@@ -7,7 +7,7 @@ const Home: FunctionComponent = () => {
 
   useEffect(() => {
     // load markdown from file
-    ; (async () => {
+    ;(async () => {
       try {
         const response = await fetch('/help/HomePage.md')
         const txt = await response.text()
@@ -20,9 +20,7 @@ const Home: FunctionComponent = () => {
 
   return (
     <PageContent title="Welcome to IoT Center V2">
-      {helpText ? (
-        <ReactMarkdown source={helpText} />
-      ) : undefined}
+      {helpText ? <ReactMarkdown source={helpText} /> : undefined}
     </PageContent>
   )
 }

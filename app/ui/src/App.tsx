@@ -14,7 +14,6 @@ import './App.css'
 import {Layout, Menu} from 'antd'
 import {
   HomeOutlined,
-  BugOutlined,
   DoubleRightOutlined,
   FastForwardOutlined,
   AreaChartOutlined,
