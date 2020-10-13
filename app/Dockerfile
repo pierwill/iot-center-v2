@@ -1,7 +1,8 @@
 #
 # Build image
 #
-FROM node:12-alpine AS BUILD_IMAGE
+# Using 12.18.4-alpine instead 12-alpine to workaround https://discuss.circleci.com/t/docker-build-fails-with-nonsensical-eperm-operation-not-permitted-copyfile/37364
+FROM node:12.18.4-alpine AS BUILD_IMAGE
 
 RUN mkdir -p /home/iot-center
 WORKDIR /home/iot-center
