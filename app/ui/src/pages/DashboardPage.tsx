@@ -233,11 +233,6 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   ) => {
     const gaugeDefaults: GaugeLayerConfig = {
       type: 'gauge',
-      decimalPlaces: {digits: 2},
-      prefix: '',
-      suffix: '',
-      tickPrefix: '',
-      tickSuffix: '',
       gaugeColors: [],
       gaugeSize: 4,
       gaugeTheme: {

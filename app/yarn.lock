@@ -1261,10 +1261,10 @@
   dependencies:
     "@hapi/hoek" "^8.3.0"
 
-"@influxdata/giraffe@^0.34.3":
-  version "0.34.3"
-  resolved "https://registry.yarnpkg.com/@influxdata/giraffe/-/giraffe-0.34.3.tgz#2059be7bfa5fc72e211149df7739a7c54ec218de"
-  integrity sha512-jjLskA6Ex3aDHdYHi+ks6zVZm99DIRTl4KM8DZZ/wpoEC5UWf1peLcP3ivNqH/DxpBjfXi/LMjkyV4N6UACe6g==
+"@influxdata/giraffe@^0.37.0":
+  version "0.37.0"
+  resolved "https://registry.yarnpkg.com/@influxdata/giraffe/-/giraffe-0.37.0.tgz#3707db58b54715b16978e245cbe25c3aeb4a45db"
+  integrity sha512-vzlcjpsObMj2K+uul3yoA1JljXkWbf5V0RMQVXPqmswjS8VAAiRX/r9p/VZjcjHhAQnuoP1lJO+inimqcC3HCQ==
 
 "@influxdata/influxdb-client-apis@^1.6.0":
   version "1.6.0"
