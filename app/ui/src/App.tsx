@@ -24,7 +24,8 @@ import DevicesPage from './pages/DevicesPage'
 import DevicePage from './pages/DevicePage'
 import NotFoundPage from './pages/NotFoundPage'
 import DashboardPage from './pages/DashboardPage'
-import {VIRTUAL_DEVICE} from './util/communication'
+
+export const VIRTUAL_DEVICE = 'virtual_device'
 
 const {Sider} = Layout
 const PAGE_HELP: Array<{

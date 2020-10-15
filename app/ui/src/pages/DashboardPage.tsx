@@ -16,19 +16,11 @@ import PageContent, {Message} from './PageContent'
 import {
   Plot,
   timeFormatter,
-  Table as GirrafeTable,
+  Table as GiraffeTable,
   GAUGE_THEME_LIGHT,
   GaugeLayerConfig,
   LineLayerConfig,
 } from '@influxdata/giraffe'
-import {
-  VIRTUAL_DEVICE,
-  DeviceData,
-  fetchDeviceConfig,
-  fetchDeviceMeasurements,
-  fetchDeviceDataFieldLast,
-  DeviceConfig,
-} from '../util/communication'
 import {
   SettingFilled,
   ReloadOutlined,
@@ -37,9 +29,94 @@ import {
 import CollapsePanel from 'antd/lib/collapse/CollapsePanel'
 import {DeviceInfo} from './DevicesPage'
 import {getXDomainFromTable} from '../util/tableUtils'
+import {flux, fluxDuration, InfluxDB} from '@influxdata/influxdb-client'
+import {queryTable} from '../util/queryTable'
+import {VIRTUAL_DEVICE} from '../App'
 
 interface Props {
   deviceId?: string
+}
+
+interface DeviceConfig {
+  influx_url: string
+  influx_org: string
+  influx_token: string
+  influx_bucket: string
+  id: string
+}
+
+interface DeviceData {
+  config: DeviceConfig
+  measurementsTable?: GiraffeTable
+  measurementsLastValues?: {column: string; table: GiraffeTable}[]
+}
+
+const fetchDeviceConfig = async (deviceId: string): Promise<DeviceConfig> => {
+  const response = await fetch(
+    `/api/env/${deviceId}?register=${deviceId === VIRTUAL_DEVICE}`
+  )
+  if (response.status >= 300) {
+    const text = await response.text()
+    throw new Error(`${response.status} ${text}`)
+  }
+  const deviceConfig: DeviceConfig = await response.json()
+  if (!deviceConfig.influx_token) {
+    throw new Error(`Device '${deviceId}' is not authorized!`)
+  }
+  return deviceConfig
+}
+
+const fetchDeviceMeasurements = async (
+  config: DeviceConfig,
+  timeStart = '-30d'
+): Promise<GiraffeTable> => {
+  const {
+    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
+    influx_token: token,
+    influx_org: org,
+    influx_bucket: bucket,
+    id,
+  } = config
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
+  const result = await queryTable(
+    queryApi,
+    flux`
+  import "influxdata/influxdb/v1"    
+  from(bucket: ${bucket})
+    |> range(start: ${fluxDuration(timeStart)})
+    |> filter(fn: (r) => r._measurement == "environment")
+    |> filter(fn: (r) => r.clientId == ${id})
+    |> v1.fieldsAsCols()`
+  )
+  return result
+}
+
+const fetchDeviceDataFieldLast = async (
+  config: DeviceConfig,
+  field: string,
+  maxPastTime = '-1m'
+): Promise<GiraffeTable> => {
+  const {
+    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
+    influx_token: token,
+    influx_org: org,
+    influx_bucket: bucket,
+    id,
+  } = config
+  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
+  const result = await queryTable(
+    queryApi,
+    flux`
+  import "influxdata/influxdb/v1"
+  from(bucket: ${bucket})
+    |> range(start: ${fluxDuration(maxPastTime)})
+    |> filter(fn: (r) => r.clientId == ${id})
+    |> filter(fn: (r) => r._measurement == "environment")
+    |> filter(fn: (r) => r["_field"] == ${field})
+    |> keep(columns: ["_value", "_time"])
+    |> last()`
+  )
+  return result
 }
 
 const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
@@ -228,7 +305,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const renderGauge = (
     gaugeDefinition: Partial<GaugeLayerConfig>,
-    table: GirrafeTable
+    table: GiraffeTable
   ) => {
     const gaugeDefaults: GaugeLayerConfig = {
       type: 'gauge',
@@ -307,7 +384,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
 
   const renderPlot = (
     lineDefinition: Partial<LineLayerConfig> | undefined,
-    table: GirrafeTable,
+    table: GiraffeTable,
     column: string
   ) => {
     const lineDefaults: LineLayerConfig = {
@@ -341,7 +418,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   const plots =
     deviceData?.measurementsTable?.length &&
     (() => {
-      const table = deviceData.measurementsTable as GirrafeTable
+      const table = deviceData.measurementsTable as GiraffeTable
       const measurementsWithValues = measurementsDefinitions.filter(
         ({column}) => table.getColumn(column)
       )

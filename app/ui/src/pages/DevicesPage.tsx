@@ -18,10 +18,10 @@ import {
   ExclamationCircleFilled,
   SettingFilled,
 } from '@ant-design/icons'
-import {fetchDeviceConfig} from '../util/communication'
 import {flux, InfluxDB} from '@influxdata/influxdb-client'
 import {queryTable} from '../util/queryTable'
 import {timeFormatter} from '@influxdata/giraffe'
+import {VIRTUAL_DEVICE} from '../App'
 
 export interface DeviceInfo {
   key: string
@@ -34,6 +34,29 @@ const NO_DEVICES: Array<DeviceInfo> = []
 interface LastEntryTime {
   deviceId: string
   lastEntry?: number
+}
+
+interface DeviceConfig {
+  influx_url: string
+  influx_org: string
+  influx_token: string
+  influx_bucket: string
+  id: string
+}
+
+const fetchDeviceConfig = async (deviceId: string): Promise<DeviceConfig> => {
+  const response = await fetch(
+    `/api/env/${deviceId}?register=${deviceId === VIRTUAL_DEVICE}`
+  )
+  if (response.status >= 300) {
+    const text = await response.text()
+    throw new Error(`${response.status} ${text}`)
+  }
+  const deviceConfig: DeviceConfig = await response.json()
+  if (!deviceConfig.influx_token) {
+    throw new Error(`Device '${deviceId}' is not authorized!`)
+  }
+  return deviceConfig
 }
 
 const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
