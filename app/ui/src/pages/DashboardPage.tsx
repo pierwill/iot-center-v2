@@ -25,7 +25,6 @@ import {
   VIRTUAL_DEVICE,
   DeviceData,
   fetchDeviceConfig,
-  fetchDeviceData,
   fetchDeviceMeasurements,
   fetchDeviceDataFieldLast,
   DeviceConfig,
@@ -78,11 +77,11 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
     const fetchData = async () => {
       setLoading(true)
       try {
-        const deviceConfig = await fetchDeviceConfig(deviceId)
-        const [deviceData, table, lastValues] = await Promise.all([
-          fetchDeviceData(deviceConfig),
-          fetchDeviceMeasurements(deviceConfig, timeStart),
-          fetchDeviceLastValues(deviceConfig, timeStart),
+        const config = await fetchDeviceConfig(deviceId)
+        const deviceData: DeviceData = { config };
+        const [table, lastValues] = await Promise.all([
+          fetchDeviceMeasurements(config, timeStart),
+          fetchDeviceLastValues(config, timeStart),
         ])
         deviceData.measurementsTable = table
         deviceData.measurementsLastValues = lastValues

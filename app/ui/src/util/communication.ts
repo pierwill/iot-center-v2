@@ -12,10 +12,6 @@ export interface DeviceConfig {
 }
 export interface DeviceData {
   config: DeviceConfig
-  minValue?: number
-  maxValue?: number
-  maxTime?: string
-  count?: string
   measurementsTable?: GirafeTable
   measurementsLastValues?: {column: string; table: GirafeTable}[]
 }
@@ -42,41 +38,6 @@ export const fetchDeviceConfig = async (
     throw new Error(`Device '${deviceId}' is not authorized!`)
   }
   return deviceConfig
-}
-
-export const fetchDeviceData = async (
-  config: DeviceConfig
-): Promise<DeviceData> => {
-  const {
-    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
-    influx_token: token,
-    influx_org: org,
-    influx_bucket: bucket,
-    id,
-  } = config
-  const influxDB = new InfluxDB({url: '/influx', token})
-  const queryApi = influxDB.getQueryApi(org)
-  const results = await queryApi.collectRows<any>(flux`
-from(bucket: ${bucket})
-  |> range(start: -30d)
-  |> filter(fn: (r) => r._measurement == "environment")
-  |> filter(fn: (r) => r.clientId == ${id})
-  |> filter(fn: (r) => r._field == "Temperature")
-  |> group()
-  |> reduce(
-        fn: (r, accumulator) => ({
-          maxTime: (if r._time>accumulator.maxTime then r._time else accumulator.maxTime),
-          maxValue: (if r._value>accumulator.maxValue then r._value else accumulator.maxValue),
-          minValue: (if r._value<accumulator.minValue then r._value else accumulator.minValue),
-          count: accumulator.count + 1.0
-        }),
-        identity: {maxTime: 1970-01-01, count: 0.0, minValue: 10000.0, maxValue: -10000.0}
-    )`)
-  if (results.length > 0) {
-    const {maxTime, minValue, maxValue, count} = results[0]
-    return {config, maxTime, minValue, maxValue, count}
-  }
-  return {config}
 }
 
 export const fetchDeviceMeasurements = async (
