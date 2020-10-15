@@ -10,8 +10,6 @@ import {
 import {RouteComponentProps} from 'react-router-dom'
 
 import PageContent, {Message} from './PageContent'
-import {Table as GiraffeTable} from '@influxdata/giraffe'
-import {queryTable} from '../util/queryTable'
 import {
   generateTemperature,
   generateHumidity,
@@ -24,6 +22,7 @@ import {
   InfoCircleFilled,
   ReloadOutlined,
 } from '@ant-design/icons'
+import Table, {ColumnsType} from 'antd/lib/table'
 
 interface DeviceConfig {
   influx_url: string
@@ -34,13 +33,16 @@ interface DeviceConfig {
   default_lat?: number
   default_lon?: number
 }
+interface measurementSummaryRow {
+  _field: string
+  minValue: number
+  maxValue: number
+  maxTime: string
+  count: string
+}
 interface DeviceData {
   config: DeviceConfig
-  minValue?: number
-  maxValue?: number
-  maxTime?: string
-  count?: string
-  measurementsTable?: GiraffeTable
+  measurements: measurementSummaryRow[]
 }
 type ProgressFn = (percent: number, current: number, total: number) => void
 const VIRTUAL_DEVICE = 'virtual_device'
@@ -70,56 +72,24 @@ async function fetchDeviceData(config: DeviceConfig): Promise<DeviceData> {
   } = config
   const influxDB = new InfluxDB({url: '/influx', token})
   const queryApi = influxDB.getQueryApi(org)
-  const results = await queryApi.collectRows<any>(flux`
+  const measurements = await queryApi.collectRows<any>(flux`
+  import "math"
 from(bucket: ${bucket})
   |> range(start: -30d)
   |> filter(fn: (r) => r._measurement == "environment")
   |> filter(fn: (r) => r.clientId == ${id})
-  |> filter(fn: (r) => r._field == "Temperature")
-  |> group()
+  |> toFloat()
+  |> group(columns: ["_field"])
   |> reduce(
-        fn: (r, accumulator) => ({
-          maxTime: (if r._time>accumulator.maxTime then r._time else accumulator.maxTime),
-          maxValue: (if r._value>accumulator.maxValue then r._value else accumulator.maxValue),
-          minValue: (if r._value<accumulator.minValue then r._value else accumulator.minValue),
-          count: accumulator.count + 1.0
-        }),
-        identity: {maxTime: 1970-01-01, count: 0.0, minValue: 10000.0, maxValue: -10000.0}
-    )`)
-  if (results.length > 0) {
-    const {maxTime, minValue, maxValue, count} = results[0]
-    return {config, maxTime, minValue, maxValue, count}
-  }
-  return {config}
-}
-
-async function fetchDeviceMeasurements(
-  config: DeviceConfig
-): Promise<GiraffeTable> {
-  const {
-    // influx_url: url, // use '/influx' proxy to avoid problem with InfluxDB v2 Beta (Docker)
-    influx_token: token,
-    influx_org: org,
-    influx_bucket: bucket,
-    id,
-  } = config
-  const queryApi = new InfluxDB({url: '/influx', token}).getQueryApi(org)
-  const result = await queryTable(
-    queryApi,
-    flux`
-  import "influxdata/influxdb/v1"    
-  from(bucket: ${bucket})
-    |> range(start: -30d)
-    |> filter(fn: (r) => r._measurement == "environment")
-    |> filter(fn: (r) => r.clientId == ${id})
-    |> filter(fn: (r) => r._field == "Temperature")
-    |> v1.fieldsAsCols()
-    |> keep(columns: ["_time", "Temperature"])`,
-    {
-      columns: ['_time', 'Temperature'],
-    }
-  )
-  return result
+      fn: (r, accumulator) => ({
+        maxTime: (if r._time>accumulator.maxTime then r._time else accumulator.maxTime),
+        maxValue: (if r._value>accumulator.maxValue then r._value else accumulator.maxValue),
+        minValue: (if r._value<accumulator.minValue then r._value else accumulator.minValue),
+        count: accumulator.count + 1.0
+      }),
+      identity: {maxTime: 1970-01-01, count: 0.0, minValue: math.mInf(sign: 1), maxValue: math.mInf(sign: -1)}
+  )`)
+  return {config, measurements}
 }
 
 async function writeEmulatedData(
@@ -135,8 +105,8 @@ async function writeEmulatedData(
   } = state.config
   // calculate window to emulate writes
   const toTime = Math.trunc(Date.now() / 60_000) * 60_000
-  let lastTime = state.maxTime
-    ? Math.trunc(Date.parse(state.maxTime) / 60_000) * 60_000
+  let lastTime = state.measurements[0].maxTime
+    ? Math.trunc(Date.parse(state.measurements[0].maxTime) / 60_000) * 60_000
     : 0
   if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
     lastTime = toTime - 30 * 24 * 60 * 60 * 1000
@@ -213,12 +183,7 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
       setLoading(true)
       try {
         const deviceConfig = await fetchDeviceConfig(deviceId)
-        const [deviceData, table] = await Promise.all([
-          fetchDeviceData(deviceConfig),
-          fetchDeviceMeasurements(deviceConfig),
-        ])
-        deviceData.measurementsTable = table
-        setDeviceData(deviceData)
+        setDeviceData(await fetchDeviceData(deviceConfig))
       } catch (e) {
         console.error(e)
         setMessage({
@@ -301,6 +266,34 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
     </>
   )
 
+  const columnDefinitions: ColumnsType<measurementSummaryRow> = [
+    {
+      title: 'Field',
+      dataIndex: '_field',
+    },
+    {
+      title: 'min',
+      dataIndex: 'minValue',
+      render: (val: number) => +val.toFixed(2),
+      align: 'right',
+    },
+    {
+      title: 'max',
+      dataIndex: 'maxValue',
+      render: (val: number) => +val.toFixed(2),
+      align: 'right',
+    },
+    {
+      title: 'max time',
+      dataIndex: 'maxTime',
+    },
+    {
+      title: 'entry count',
+      dataIndex: 'count',
+      align: 'right',
+    },
+  ]
+
   return (
     <PageContent
       title={
@@ -343,22 +336,11 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
           {deviceData?.config.influx_token ? '***' : 'N/A'}
         </Descriptions.Item>
       </Descriptions>
-      <Descriptions title="Device Measurements (last 30 days)">
-        <Descriptions.Item label="Measurement Points">
-          {deviceData?.count}
-        </Descriptions.Item>
-        <Descriptions.Item label="Last measurement Time">
-          {deviceData?.maxTime
-            ? new Date(deviceData?.maxTime).toString()
-            : undefined}
-        </Descriptions.Item>
-        <Descriptions.Item label="Minimum Temperature">
-          {deviceData?.minValue}
-        </Descriptions.Item>
-        <Descriptions.Item label="Maximum Temperature">
-          {deviceData?.maxValue}
-        </Descriptions.Item>
-      </Descriptions>
+      <Table
+        dataSource={deviceData?.measurements}
+        columns={columnDefinitions}
+        pagination={false}
+      ></Table>
     </PageContent>
   )
 }

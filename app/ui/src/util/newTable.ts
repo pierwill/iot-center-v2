@@ -28,9 +28,7 @@ class SimpleTable implements Table {
   }
 
   // features we are using, doesn't care about column type
-  getOriginalColumnType(
-    columnKey: string
-  ):
+  getOriginalColumnType():
     | 'string'
     | 'boolean'
     | 'unsignedLong'
