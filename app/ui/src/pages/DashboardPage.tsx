@@ -78,7 +78,7 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
       setLoading(true)
       try {
         const config = await fetchDeviceConfig(deviceId)
-        const deviceData: DeviceData = { config };
+        const deviceData: DeviceData = {config}
         const [table, lastValues] = await Promise.all([
           fetchDeviceMeasurements(config, timeStart),
           fetchDeviceLastValues(config, timeStart),

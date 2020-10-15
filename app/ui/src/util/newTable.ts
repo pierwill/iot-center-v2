@@ -1,5 +1,5 @@
 // TODO this is temporary solution, the file was taken from @influxdata/giraffe
-import {Table, ColumnType, ColumnData} from '@influxdata/giraffe'
+import {Table, ColumnType, ColumnData, FluxDataType} from '@influxdata/giraffe'
 
 // Don't export me!
 class SimpleTable implements Table {
@@ -25,6 +25,21 @@ class SimpleTable implements Table {
   ) {
     this.length = length
     this.columns = columns
+  }
+
+  // features we are using, doesn't care about column type
+  getOriginalColumnType(
+    columnKey: string
+  ):
+    | 'string'
+    | 'boolean'
+    | 'unsignedLong'
+    | 'long'
+    | 'double'
+    | 'dateTime:RFC3339'
+    | 'system'
+    | null {
+    return null
   }
 
   get columnKeys(): string[] {
@@ -81,6 +96,7 @@ class SimpleTable implements Table {
 
   addColumn(
     columnKey: string,
+    _fluxDataType: FluxDataType,
     type: ColumnType,
     data: ColumnData,
     name?: string
