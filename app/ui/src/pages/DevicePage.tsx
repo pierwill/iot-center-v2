@@ -19,6 +19,7 @@ import {
 } from '../util/generateValue'
 import {
   AreaChartOutlined,
+  EditOutlined,
   InfoCircleFilled,
   ReloadOutlined,
 } from '@ant-design/icons'
@@ -243,8 +244,16 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
           title="Write Missing Data for the last 30 days"
           placement="top"
         >
-          <Button onClick={writeData} disabled={progress !== -1}>
-            Write New Data
+          <Button
+            onClick={writeData}
+            disabled={progress !== -1}
+            style={{
+              borderColor: '#1890ff',
+              borderWidth: '2px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <EditOutlined />
           </Button>
         </Tooltip>
       ) : undefined}
