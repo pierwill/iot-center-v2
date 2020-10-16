@@ -3,9 +3,10 @@ import {InfluxDB, flux, Point} from '@influxdata/influxdb-client'
 import {
   Tooltip,
   Button,
-  message as antdMessage,
   Progress,
   Descriptions,
+  notification,
+  Divider,
 } from 'antd'
 import {RouteComponentProps} from 'react-router-dom'
 
@@ -221,17 +222,19 @@ const DevicePage: FunctionComponent<
         onProgress
       )
       if (count) {
-        antdMessage.success(
-          <>
-            <b>{count}</b> measurement point{count > 1 ? 's were' : ' was'}{' '}
-            written to InfluxDB.
-          </>
-        )
+        notification.success({
+          message: (
+            <>
+              <b>{count}</b> measurement point{count > 1 ? 's were' : ' was'}{' '}
+              written to InfluxDB.
+            </>
+          ),
+        })
         setDataStamp(dataStamp + 1) // reload device data
       } else {
-        antdMessage.info(
-          `No new data were written to InfluxDB, the current measurement is already written.`
-        )
+        notification.info({
+          message: `No new data were written to InfluxDB, the current measurement is already written.`,
+        })
       }
     } catch (e) {
       console.error(e)
@@ -245,6 +248,7 @@ const DevicePage: FunctionComponent<
     }
   }
 
+  const writeButtonDisabled = progress !== -1 || loading
   const pageControls = (
     <>
       {writeAllowed ? (
@@ -254,11 +258,11 @@ const DevicePage: FunctionComponent<
         >
           <Button
             onClick={writeData}
-            disabled={progress !== -1}
+            disabled={writeButtonDisabled}
             style={{
-              borderColor: '#1890ff',
-              borderWidth: '2px',
               boxSizing: 'border-box',
+              borderWidth: '2px',
+              ...(!writeButtonDisabled && {borderColor: '#1890ff'}),
             }}
           >
             <EditOutlined />
@@ -363,6 +367,7 @@ const DevicePage: FunctionComponent<
           {deviceData?.config.influx_token ? '***' : 'N/A'}
         </Descriptions.Item>
       </Descriptions>
+      <Divider>Measurements</Divider>
       <Table
         dataSource={deviceData?.measurements}
         columns={columnDefinitions}
