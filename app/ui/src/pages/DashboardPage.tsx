@@ -33,10 +33,6 @@ import {flux, fluxDuration, InfluxDB} from '@influxdata/influxdb-client'
 import {queryTable} from '../util/queryTable'
 import {VIRTUAL_DEVICE} from '../App'
 
-interface Props {
-  deviceId?: string
-}
-
 interface DeviceConfig {
   influx_url: string
   influx_org: string
@@ -119,10 +115,17 @@ const fetchDeviceDataFieldLast = async (
   return result
 }
 
-const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
-  match,
-  history,
-}) => {
+interface PropsRoute {
+  deviceId?: string
+}
+
+interface Props {
+  helpCollapsed: boolean
+}
+
+const DashboardPage: FunctionComponent<
+  RouteComponentProps<PropsRoute> & Props
+> = ({match, history, helpCollapsed}) => {
   const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<Message | undefined>()
@@ -131,6 +134,10 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
   const [devices, setDevices] = useState<DeviceInfo[] | undefined>(undefined)
   const [timeStart, setTimeStart] = useState('-1d')
   const [xDomain, setXDomain] = useState<number[] | undefined>(undefined)
+
+  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
+    return helpCollapsed ? collapsed : expanded
+  }
 
   const resetXDomain = () =>
     setXDomain(getXDomainFromTable(deviceData?.measurementsTable))
@@ -359,7 +366,11 @@ const DashboardPage: FunctionComponent<RouteComponentProps<Props>> = ({
           const [time] = lastValueTable.getColumn('_time') as number[]
 
           return (
-            <Col xs={24} md={12} xl={6}>
+            <Col
+              sm={helpLayout(24, 24)}
+              md={helpLayout(12, 24)}
+              xl={helpLayout(6, 12)}
+            >
               <Card
                 title={title}
                 extra={

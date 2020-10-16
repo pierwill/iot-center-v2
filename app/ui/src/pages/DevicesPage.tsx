@@ -87,12 +87,20 @@ const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
 
 const NO_ENTRIES: Array<LastEntryTime> = []
 
-const DevicesPage: FunctionComponent = () => {
+interface Props {
+  helpCollapsed: boolean
+}
+
+const DevicesPage: FunctionComponent<Props> = ({helpCollapsed}) => {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<Message | undefined>(undefined)
   const [data, setData] = useState(NO_DEVICES)
   const [dataStamp, setDataStamp] = useState(0)
   const [lastEntries, setLastEntries] = useState(NO_ENTRIES)
+
+  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
+    return helpCollapsed ? collapsed : expanded
+  }
 
   useEffect(() => {
     setLoading(true)
@@ -191,6 +199,7 @@ const DevicesPage: FunctionComponent = () => {
     {
       title: 'Registration Time',
       dataIndex: 'createdAt',
+      responsive: helpLayout(['lg'], ['xxl']),
     },
     {
       title: 'Last Entry',
@@ -204,6 +213,7 @@ const DevicesPage: FunctionComponent = () => {
             format: 'YYYY-MM-DD HH:mm:ss ZZ',
           })(lastEntry)
       },
+      responsive: helpLayout(['xl'], []),
     },
     {
       title: '',

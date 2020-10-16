@@ -134,14 +134,32 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
         <Switch>
           <Redirect exact from="/" to="/home" />
           <Route exact path="/home" component={HomePage} />
-          <Route exact path="/devices" component={DevicesPage} />
-          <Route exact path="/devices/:deviceId" component={DevicePage} />
+          <Route
+            exact
+            path="/devices"
+            render={(props) => (
+              <DevicesPage {...props} helpCollapsed={helpCollapsed} />
+            )}
+          />
+          <Route
+            exact
+            path="/devices/:deviceId"
+            render={(props) => (
+              <DevicePage {...props} helpCollapsed={helpCollapsed} />
+            )}
+          />
           <Redirect
             exact
             from="/dashboard"
             to={`/dashboard/${VIRTUAL_DEVICE}`}
           />
-          <Route exact path="/dashboard/:deviceId" component={DashboardPage} />
+          <Route
+            exact
+            path="/dashboard/:deviceId"
+            render={(props) => (
+              <DashboardPage {...props} helpCollapsed={helpCollapsed} />
+            )}
+          />
           <Route path="*" component={NotFoundPage} />
         </Switch>
         {helpText ? (

@@ -33,6 +33,7 @@ interface DeviceConfig {
   id: string
   default_lat?: number
   default_lon?: number
+  createdAt: string
 }
 interface measurementSummaryRow {
   _field: string
@@ -158,14 +159,17 @@ async function writeEmulatedData(
   return pointsWritten
 }
 
-interface Props {
+interface PropsRoute {
   deviceId?: string
 }
 
-const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
-  match,
-  location,
-}) => {
+interface Props {
+  helpCollapsed: boolean
+}
+
+const DevicePage: FunctionComponent<
+  RouteComponentProps<PropsRoute> & Props
+> = ({match, location, helpCollapsed}) => {
   const deviceId = match.params.deviceId ?? VIRTUAL_DEVICE
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<Message | undefined>()
@@ -177,6 +181,10 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
     new URLSearchParams(location.search).get('write') === 'true'
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
+
+  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
+    return helpCollapsed ? collapsed : expanded
+  }
 
   // fetch device configuration and data
   useEffect(() => {
@@ -328,9 +336,19 @@ const DevicePage: FunctionComponent<RouteComponentProps<Props>> = ({
           </div>
         </>
       ) : undefined}
-      <Descriptions title="Device Configuration">
+      <Descriptions
+        title="Device Configuration"
+        bordered
+        column={helpLayout(
+          {xxl: 3, xl: 2, md: 1, sm: 1},
+          {xxl: 2, md: 1, sm: 1}
+        )}
+      >
         <Descriptions.Item label="Device ID">
           {deviceData?.config.id}
+        </Descriptions.Item>
+        <Descriptions.Item label="Registration Time">
+          {deviceData?.config.createdAt}
         </Descriptions.Item>
         <Descriptions.Item label="InfluxDB URL">
           {deviceData?.config.influx_url}
