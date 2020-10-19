@@ -1,3 +1,6 @@
+//TODO: tempSensor, etc.
+//TODO: smart buffering for geo
+
 #if defined(ESP32)
   #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
@@ -34,6 +37,7 @@
 // From sensors.ino
 extern float temp, hum, pres, co2, tvoc;
 extern double latitude, longitude;
+extern String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
 
 // InfluxDB client
 InfluxDBClient client;
@@ -184,20 +188,32 @@ void setup() {
 
   // Load configuration including time
   configSync();
+}
 
-  // Add InfluxDB tags
-  envData.addTag("clientId", DEVICE_UUID);
-  envData.addTag("device", DEVICE);
-  envData.addTag("sensor", getSensorsList());
+
+void addSensorTag( const char* tagName, float value, String sensor) {
+  if ( isnan(value) || (sensor == ""))  //No sensor, exit
+    return;
+  envData.addTag( tagName, sensor);
 }
 
 // Arduino loop
 void loop() {
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
-  
+ 
   // Read measurements from all the sensors
   readSensors();
+
+  // Add InfluxDB tags
+  envData.addTag("clientId", DEVICE_UUID);
+  envData.addTag("device", DEVICE);
+  addSensorTag( "temperatureSensor", temp, tempSens);
+  addSensorTag( "humiditySensor", hum, humSens);
+  addSensorTag( "PressureSensor", pres, presSens);
+  addSensorTag( "CO2Sensor", co2, co2Sens);
+  addSensorTag( "TVOCSensor", tvoc, tvocSens);
+  addSensorTag( "GPSSensor", latitude, gpsSens);
   
   // Report measured values. If NAN, addField will skip it
   envData.setTime(time(nullptr));
@@ -223,8 +239,9 @@ void loop() {
   else
     Serial.println("Error, missing temperature, skipping write");
 
-  // Clear fields for next usage. Tags remain the same.
+  // Clear fields for next usage
   envData.clearFields();
+  envData.clearTags();
 
   // If no Wifi signal, try to reconnect it
   if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))

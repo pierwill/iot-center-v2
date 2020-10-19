@@ -51,6 +51,7 @@ bool bBME680 = false;
 
 float temp(NAN), hum(NAN), pres(NAN), co2(NAN), tvoc(NAN);
 double latitude(NAN), longitude(NAN);
+String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
 
 void report_i2c() {
    Serial.println( "I2C scan");
@@ -117,18 +118,19 @@ void setupSensors() {
     Serial.println("Missing BME680 sensor");
   
   // Initialising Sensor BMP/BME280
-  bme.begin();  //I2C 0x76
-  switch(bme.chipModel()) {
-     case BME280::ChipModel_BME280:
-       Serial.println("Found BME280 sensor");
-       bBME280 = true;
-       break;
-     case BME280::ChipModel_BMP280:
-       Serial.println("Found BMP280 sensor");
-       bBMP280 = true;
-       break;
-     default:
-       Serial.println("Missing BMx280 sensor");
+  if ( bme.begin()) { //I2C 0x76
+    switch(bme.chipModel()) {
+       case BME280::ChipModel_BME280:
+         Serial.println("Found BME280 sensor");
+         bBME280 = true;
+         break;
+       case BME280::ChipModel_BMP280:
+         Serial.println("Found BMP280 sensor");
+         bBMP280 = true;
+         break;
+       default:
+         Serial.println("Missing BMx280 sensor");
+    }
   }
 
   // Initialising Sensor SI7021
@@ -185,8 +187,13 @@ void readSensors() {
   pres = NAN;
   co2 = NAN;
   tvoc = NAN;
-
-  #if defined(ESP32)
+  tempSens = "";
+  humSens = "";
+  presSens = "";
+  co2Sens = "";
+  tvocSens = "";
+  gpsSens = "";
+#if defined(ESP32)
   //Read GPS location
   if (bGPS) {
     while (GPS.available() > 0)
@@ -195,10 +202,11 @@ void readSensors() {
       latitude = gps.location.lat();
       longitude = gps.location.lng();
       Serial.println( String("GPS Lat: ") + latitude + "\t\tLongitude: " + longitude);
+      gpsSens = "NEO-M8N";
     } else
       Serial.println( "Waiting for GPS fix");
   }  
-  #endif
+#endif
 
 #if defined(ONE_WIRE_PIN)
   //Read temperature from the DS1820 sensor
@@ -206,9 +214,13 @@ void readSensors() {
   oneWireDevices = ow_sensors.getDeviceCount();
   for ( uint8_t i1 = 0; i1 < oneWireDevices; i1++) {
     float t = ow_sensors.getTempCByIndex( i1);
+    if (t == -127)
+      t = NAN;   
     Serial.println(String("OW Temp: ") + t + "°C");
-    if (isnan(temp) || temp < t) //get the highest temperature
+    if (isnan(temp) || (temp < t)) { //get the highest temperature
       temp = t;
+      tempSens = "DS1820";
+    }
   }
 #endif
 
@@ -216,7 +228,9 @@ void readSensors() {
   //Read temperature and humidity from the DHTxx sensor
   if (bDHT) {
     temp = dht.readTemperature(); // Gets the values of the temperature
+    tempSens = "DHT"xstr(DHTTYPE);
     hum = dht.readHumidity(); // Gets the values of the humidity
+    HUMSens = "DHT"xstr(DHTTYPE);
   }
 #endif
 
@@ -224,9 +238,13 @@ void readSensors() {
   if (bBME680) {
     if (bme680.performReading()) {
       temp = bme680.temperature;
+      tempSens = "bme680";
       hum = bme680.humidity;
+      humSens = "bme680";
       pres = bme680.pressure / 100.0;
+      presSens = "bme680";
       co2 = (bme680.gas_resistance / 1000.0) + 400;
+      co2Sens = "bme680";
     } else {
       Serial.println("Failed to perform reading from BME680");
     }
@@ -235,20 +253,31 @@ void readSensors() {
   //Read the BME280/BMP280 sensor
   if ( bBME280 || bBMP280) {
     bme.read(pres, temp, hum, BME280::TempUnit_Celsius, BME280::PresUnit_hPa);
-    if ( !bBME280) // Only BME280 does have humidity sensor
+    tempSens = "BME280";
+    humSens = "BME280";
+    presSens = "BME280";
+    if ( !bBME280) { // Only BME280 does have humidity sensor
       hum = NAN;
+      tempSens = "BMP280";
+      humSens = "";
+      presSens = "BMP280";
+    }
     Serial.println(String("BME Temp: ") + temp + "°C\tHumidity: " + hum + "% RH\tPressure: " + pres + " hPa");
   }
   
   if (bHDC) {
     temp = hdc1080.readTemperature();
+    tempSens = "HDC1080";
     hum = hdc1080.readHumidity();
+    humSens = "HDC1080";
     Serial.println(String("HDC Temp: ") + temp + "°C\tHumidity: " + hum + "% RH");
   }
 
   if (b7021) {
     temp = si7021sensor.getTemp();
+    tempSens = "SI7021";
     hum = si7021sensor.getRH();
+    humSens = "SI7021";
     Serial.println(String("SI Temp: ") + temp + "°C\tHumidity: " + hum + "% RH");
   }
   
@@ -256,7 +285,9 @@ void readSensors() {
     ccs811.setEnvironmentalData( isnan(hum) ? 60 : hum, temp);  //if humidity is not measured, set 60%
     ccs811.readAlgorithmResults();
     co2 = ccs811.getCO2();
+    co2Sens = "CCS811";
     tvoc = ccs811.getTVOC();
+    tvocSens = "CCS811";
     Serial.println(String("CCS CO2: ") + co2 + "ppm\t\tVOC: " + tvoc + "ppb");
   }
 }
