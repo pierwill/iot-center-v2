@@ -49,10 +49,8 @@ bool b7021 = false;
 Adafruit_BME680 bme680; // I2C
 bool bBME680 = false;
 
-float temp(NAN), hum(NAN), pres(NAN), co2(NAN), tvoc(NAN);
-double latitude(NAN), longitude(NAN);
-String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
 
+// Debug function showing all available I2C devices
 void report_i2c() {
    Serial.println( "I2C scan");
    byte nDevices = 0;
@@ -83,6 +81,7 @@ void report_i2c() {
   }
 }
 
+// Initialize all sensors
 void setupSensors() {
   Serial.println( "Setup sensors");
   //Init I2C
@@ -160,6 +159,7 @@ void setupSensors() {
   }
 
 #if defined(ONE_WIRE_PIN)
+  // Initialising OneWire sensors
   ow_sensors.begin(); // Start up the library
   oneWireDevices = ow_sensors.getDeviceCount();
   if (oneWireDevices > 0) { 
@@ -171,6 +171,7 @@ void setupSensors() {
 #endif
 
 #if defined(DHT_PIN)
+  // Initialising DHTxx sensors
   pinMode(DHT_PIN, INPUT);
   dht.begin();
   if (!isnan(dht.readTemperature())) { 
@@ -181,26 +182,31 @@ void setupSensors() {
 #endif
 }
 
-void readSensors() {
-  temp = NAN; //Clear measurements
-  hum = NAN;
-  pres = NAN;
-  co2 = NAN;
-  tvoc = NAN;
+//Read all values from available sensors
+void readSensors( tMeasurement* ppm) {
+  //Clear measurements and sensors
+  ppm->temp = NAN; 
+  ppm->hum = NAN;
+  ppm->pres = NAN;
+  ppm->co2 = NAN;
+  ppm->tvoc = NAN;
+  ppm->latitude = defaultLatitude;
+  ppm->longitude = defaultLongitude;
   tempSens = "";
   humSens = "";
   presSens = "";
   co2Sens = "";
   tvocSens = "";
   gpsSens = "";
+
 #if defined(ESP32)
   //Read GPS location
   if (bGPS) {
     while (GPS.available() > 0)
       gps.encode(GPS.read());
     if (gps.location.isValid()) {
-      latitude = gps.location.lat();
-      longitude = gps.location.lng();
+      ppm->latitude = gps.location.lat();
+      ppm->longitude = gps.location.lng();
       Serial.println( String("GPS Lat: ") + latitude + "\t\tLongitude: " + longitude);
       gpsSens = "NEO-M8N";
     } else
@@ -209,16 +215,16 @@ void readSensors() {
 #endif
 
 #if defined(ONE_WIRE_PIN)
-  //Read temperature from the DS1820 sensor
+  //Read temperature from the DS1820 sensor(s)
   ow_sensors.requestTemperatures();
   oneWireDevices = ow_sensors.getDeviceCount();
   for ( uint8_t i1 = 0; i1 < oneWireDevices; i1++) {
     float t = ow_sensors.getTempCByIndex( i1);
     if (t == -127)
       t = NAN;   
-    Serial.println(String("OW Temp: ") + t + "°C");
-    if (isnan(temp) || (temp < t)) { //get the highest temperature
-      temp = t;
+    Serial.println(String("OneWire Temp: ") + t + "°C");
+    if (isnan(ppm->temp) || (ppm->temp < t)) { //get the highest temperature
+      ppm->temp = t;
       tempSens = "DS1820";
     }
   }
@@ -227,9 +233,9 @@ void readSensors() {
 #if defined(DHT_PIN)
   //Read temperature and humidity from the DHTxx sensor
   if (bDHT) {
-    temp = dht.readTemperature(); // Gets the values of the temperature
+    ppm->temp = dht.readTemperature(); // Gets the values of the temperature
     tempSens = "DHT"xstr(DHTTYPE);
-    hum = dht.readHumidity(); // Gets the values of the humidity
+    ppm->hum = dht.readHumidity(); // Gets the values of the humidity
     HUMSens = "DHT"xstr(DHTTYPE);
   }
 #endif
@@ -237,13 +243,13 @@ void readSensors() {
   //Read the BME680 sensor
   if (bBME680) {
     if (bme680.performReading()) {
-      temp = bme680.temperature;
+      ppm->temp = bme680.temperature;
       tempSens = "bme680";
-      hum = bme680.humidity;
+      ppm->hum = bme680.humidity;
       humSens = "bme680";
-      pres = bme680.pressure / 100.0;
+      ppm->pres = bme680.pressure / 100.0;
       presSens = "bme680";
-      co2 = (bme680.gas_resistance / 1000.0) + 400;
+      ppm->co2 = (bme680.gas_resistance / 1000.0) + 400;
       co2Sens = "bme680";
     } else {
       Serial.println("Failed to perform reading from BME680");
@@ -252,46 +258,45 @@ void readSensors() {
   
   //Read the BME280/BMP280 sensor
   if ( bBME280 || bBMP280) {
-    bme.read(pres, temp, hum, BME280::TempUnit_Celsius, BME280::PresUnit_hPa);
+    bme.read(ppm->pres, ppm->temp, ppm->hum, BME280::TempUnit_Celsius, BME280::PresUnit_hPa);
     tempSens = "BME280";
     humSens = "BME280";
     presSens = "BME280";
     if ( !bBME280) { // Only BME280 does have humidity sensor
-      hum = NAN;
+      ppm->hum = NAN;
       tempSens = "BMP280";
       humSens = "";
       presSens = "BMP280";
     }
-    Serial.println(String("BME Temp: ") + temp + "°C\tHumidity: " + hum + "% RH\tPressure: " + pres + " hPa");
+    Serial.println(String("BME Temp: ") + ppm->temp + "°C\tHumidity: " + ppm->hum + "% RH\tPressure: " + ppm->pres + " hPa");
   }
-  
+
+  //Read the HDC1080 sensor
   if (bHDC) {
-    temp = hdc1080.readTemperature();
+    ppm->temp = hdc1080.readTemperature();
     tempSens = "HDC1080";
-    hum = hdc1080.readHumidity();
+    ppm->hum = hdc1080.readHumidity();
     humSens = "HDC1080";
-    Serial.println(String("HDC Temp: ") + temp + "°C\tHumidity: " + hum + "% RH");
+    Serial.println(String("HDC Temp: ") + ppm->temp + "°C\tHumidity: " + ppm->hum + "% RH");
   }
 
+  //Read the SI7021 sensor
   if (b7021) {
-    temp = si7021sensor.getTemp();
+    ppm->temp = si7021sensor.getTemp();
     tempSens = "SI7021";
-    hum = si7021sensor.getRH();
+    ppm->hum = si7021sensor.getRH();
     humSens = "SI7021";
-    Serial.println(String("SI Temp: ") + temp + "°C\tHumidity: " + hum + "% RH");
+    Serial.println(String("SI Temp: ") + ppm->temp + "°C\tHumidity: " + ppm->hum + "% RH");
   }
   
+  //Read the CCS811 sensor
   if (bCCS) {
-    ccs811.setEnvironmentalData( isnan(hum) ? 60 : hum, temp);  //if humidity is not measured, set 60%
+    ccs811.setEnvironmentalData( isnan(ppm->hum) ? 60 : ppm->hum, ppm->temp);  //if humidity is not measured, set 60%
     ccs811.readAlgorithmResults();
-    co2 = ccs811.getCO2();
+    ppm->co2 = ccs811.getCO2();
     co2Sens = "CCS811";
-    tvoc = ccs811.getTVOC();
+    ppm->tvoc = ccs811.getTVOC();
     tvocSens = "CCS811";
-    Serial.println(String("CCS CO2: ") + co2 + "ppm\t\tVOC: " + tvoc + "ppb");
+    Serial.println(String("CCS CO2: ") + ppm->co2 + "ppm\t\tVOC: " + ppm->tvoc + "ppb");
   }
-}
-
-String getSensorsList() { //TODO remove chain
-  return String(bBME680 ? "BME680" : "") + (bBME280 ? "BME280" : "") + (bBMP280 ? "BMP280" : "") + (bDHT ? "DHT"xstr(DHTTYPE) : "") + (oneWireDevices > 0 ? "DS1820" : "") + (bCCS ? "+CCS811" : "") + (bHDC ? "+HDC1080" : "") + (b7021 ? "+SI7021" : "") + (bGPS ? "+GPS" : "");
 }

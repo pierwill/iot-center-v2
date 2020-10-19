@@ -1,5 +1,20 @@
-//TODO: tempSensor, etc.
 //TODO: smart buffering for geo
+
+// Set device UUID - use generator e.g. https://www.uuidgenerator.net/version4
+#define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
+// Set WiFi AP SSID
+#define WIFI_SSID "SSID"
+// Set WiFi password
+#define WIFI_PASSWORD "PASSWORD"
+// Set IoT Center URL - set URL where IoT Center registration API is running
+#define IOT_CENTER_URL "http://IP:5000/api/env/"
+
+#define WRITE_PRECISION WritePrecision::S
+#define MAX_BATCH_SIZE 2
+#define WRITE_BUFFER_SIZE 2
+#define DEFAULT_CONFIG_REFRESH 360
+#define DEFAULT_MEASUREMENT_INTERVAL 10
+
 
 #if defined(ESP32)
   #include <WiFiMulti.h>
@@ -14,30 +29,21 @@
 
 #include <InfluxDbClient.h>   //InfluxDB client for Arduino
 #include <InfluxDbCloud.h>    //For Influx Cloud support
-
-// WiFi AP SSID
-#define WIFI_SSID "SSID"
-// WiFi password
-#define WIFI_PASSWORD "PASSWORD"
-// IoT Center URL - set real URL where IoT Center is running
-#define IOT_CENTER_URL "http://IP:5000/api/env/"
-// Define device UUID - use generator e.g. https://www.uuidgenerator.net/version4
-#define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
-
-#define WRITE_PRECISION WritePrecision::S
-#define MAX_BATCH_SIZE 10
-#define WRITE_BUFFER_SIZE 30
-#define DEFAULT_CONFIG_REFRESH 360
-#define DEFAULT_MEASUREMENT_INTERVAL 10
-
-#include "mirek.h"
+#include "mirek.h" //remove or comment it
 
 #define IOT_CENTER_DEVICE_URL IOT_CENTER_URL DEVICE_UUID
 
-// From sensors.ino
-extern float temp, hum, pres, co2, tvoc;
-extern double latitude, longitude;
-extern String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
+String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
+
+struct tMeasurement {
+  float temp, hum, pres, co2, tvoc;
+  double latitude, longitude;
+  unsigned long long timestamp;
+};
+
+tMeasurement m[120];
+tMeasurement* pm = &m[0];
+double defaultLatitude(NAN), defaultLongitude(NAN);
 
 // InfluxDB client
 InfluxDBClient client;
@@ -84,7 +90,6 @@ updatedAt: 2020-09-15T12:40:12.4796108+02:00
 serverTime: 2020-09-15T12:19:17.319Z
 configuration_refresh: 3600
 */  
-  
   // Load config from IoT Center
   HTTPClient http;
   Serial.println("Connecting " IOT_CENTER_DEVICE_URL);
@@ -157,15 +162,51 @@ configuration_refresh: 3600
       Serial.println(client.getLastErrorMessage());
     }
 
-    latitude = loadParameter( payload, "default_lat").toDouble();
-    longitude = loadParameter( payload, "default_lon").toDouble();
+    defaultLatitude = loadParameter( payload, "default_lat").toDouble();
+    defaultLongitude = loadParameter( payload, "default_lon").toDouble();
   } else {
     Serial.println("[HTTP] GET failed, emty response"); 
   }
   loadConfigTime = millis();
 }
 
-// Arduino setup
+// Add sensor type as tag
+void addSensorTag( const char* tagName, float value, String sensor) {
+  if ( isnan(value) || (sensor == ""))  //No sensor, exit
+    return;
+  envData.addTag( tagName, sensor);
+}
+
+// Convert measured values into InfluxDB point
+void measurementToPoint( tMeasurement* ppm, Point& point) {
+  // Clear tags and fields
+  envData.clearTags();
+  envData.clearFields();
+  
+  // Add InfluxDB tags
+  point.addTag("clientId", DEVICE_UUID);
+  point.addTag("device", DEVICE);
+  addSensorTag( "temperatureSensor", ppm->temp, tempSens);
+  addSensorTag( "humiditySensor", ppm->hum, humSens);
+  addSensorTag( "PressureSensor", ppm->pres, presSens);
+  addSensorTag( "CO2Sensor", ppm->co2, co2Sens);
+  addSensorTag( "TVOCSensor", ppm->tvoc, tvocSens);
+  addSensorTag( "GPSSensor", ppm->latitude, gpsSens);
+  
+  // Report measured values. If NAN, addField will skip it
+  point.setTime( ppm->timestamp);
+  point.addField("Temperature", ppm->temp);
+  point.addField("Humidity", ppm->hum);
+  point.addField("Pressure", ppm->pres);
+  if ( !isnan(ppm->co2))
+    point.addField("CO2", uint16_t(ppm->co2));
+  if ( !isnan(ppm->tvoc))
+    point.addField("TVOC", uint16_t(ppm->tvoc));
+  point.addField("Lat", ppm->latitude, 6);
+  point.addField("Lon", ppm->longitude, 6);
+}
+
+// Arduino main setup fuction
 void setup() {
   //Prepare logging
   Serial.begin(115200);
@@ -190,43 +231,18 @@ void setup() {
   configSync();
 }
 
-
-void addSensorTag( const char* tagName, float value, String sensor) {
-  if ( isnan(value) || (sensor == ""))  //No sensor, exit
-    return;
-  envData.addTag( tagName, sensor);
-}
-
-// Arduino loop
+// Arduino main loop function
 void loop() {
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
  
   // Read measurements from all the sensors
-  readSensors();
+  pm->timestamp = time(nullptr);
+  readSensors( pm);
 
-  // Add InfluxDB tags
-  envData.addTag("clientId", DEVICE_UUID);
-  envData.addTag("device", DEVICE);
-  addSensorTag( "temperatureSensor", temp, tempSens);
-  addSensorTag( "humiditySensor", hum, humSens);
-  addSensorTag( "PressureSensor", pres, presSens);
-  addSensorTag( "CO2Sensor", co2, co2Sens);
-  addSensorTag( "TVOCSensor", tvoc, tvocSens);
-  addSensorTag( "GPSSensor", latitude, gpsSens);
+  // Convert measured values into InfluxDB point
+  measurementToPoint( pm, envData);
   
-  // Report measured values. If NAN, addField will skip it
-  envData.setTime(time(nullptr));
-  envData.addField("Temperature", temp);
-  envData.addField("Humidity", hum);
-  envData.addField("Pressure", pres);
-  if ( !isnan(co2))
-    envData.addField("CO2", uint16_t(co2));
-  if ( !isnan(tvoc))
-    envData.addField("TVOC", uint16_t(tvoc));
-  envData.addField("Lat", latitude, 6);
-  envData.addField("Lon", longitude, 6);
-
   // Print what are we exactly writing
   Serial.print("Writing: ");
   Serial.println(envData.toLineProtocol());
@@ -234,14 +250,10 @@ void loop() {
   // Write point into buffer
   unsigned long writeTime = millis();
 
-  if (!isnan(temp)) //Write to InfluxDB only if we have a valid temperature
+  if (!isnan(pm->temp)) //Write to InfluxDB only if we have a valid temperature
     client.writePoint(envData);
   else
     Serial.println("Error, missing temperature, skipping write");
-
-  // Clear fields for next usage
-  envData.clearFields();
-  envData.clearTags();
 
   // If no Wifi signal, try to reconnect it
   if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
