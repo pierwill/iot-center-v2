@@ -1,5 +1,3 @@
-//TODO: smart buffering for geo
-
 // Set device UUID - use generator e.g. https://www.uuidgenerator.net/version4
 #define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
 // Set WiFi AP SSID
@@ -12,24 +10,25 @@
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 2
 #define WRITE_BUFFER_SIZE 2
-#define DEFAULT_CONFIG_REFRESH 360
-#define DEFAULT_MEASUREMENT_INTERVAL 10
-
+#define DEFAULT_CONFIG_REFRESH 3600
+#define DEFAULT_MEASUREMENT_INTERVAL 60
 
 #if defined(ESP32)
   #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
   #define DEVICE "ESP32"
+  #define OFFLINE_BUFFER_SIZE 600
 #elif defined(ESP8266)
   #include <ESP8266WiFiMulti.h>
   ESP8266WiFiMulti wifiMulti;
   #define DEVICE "ESP8266"
   #define WIFI_AUTH_OPEN ENC_TYPE_NONE
+  #define OFFLINE_BUFFER_SIZE 120
 #endif
 
 #include <InfluxDbClient.h>   //InfluxDB client for Arduino
 #include <InfluxDbCloud.h>    //For Influx Cloud support
-#include "mirek.h" //remove or comment it
+#include "mirek.h" //Remove or comment it out
 
 #define IOT_CENTER_DEVICE_URL IOT_CENTER_URL DEVICE_UUID
 
@@ -41,8 +40,38 @@ struct tMeasurement {
   unsigned long long timestamp;
 };
 
-tMeasurement m[120];
-tMeasurement* pm = &m[0];
+//Simple circular buffer to store measured values when offline
+class Buffer {
+private:
+  tMeasurement buffer[ OFFLINE_BUFFER_SIZE];
+  unsigned int head = 0;
+  unsigned int tail = 0;
+public:
+  //Return tail item to store new data
+  tMeasurement* getTail() {
+    return &buffer[tail];
+  }
+  // Add tail item to circular buffer
+  bool enqueue() {
+    // increment tail
+    tail = (tail + 1) % OFFLINE_BUFFER_SIZE;
+  }
+  // Remove an item from circular buffer and return it
+  tMeasurement* dequeue() {
+    if (isEmpty())
+      return NULL;   
+    // get item at head
+    tMeasurement* item = &buffer[head];
+    // move head foward
+    head = (head + 1) % OFFLINE_BUFFER_SIZE;
+    // return item
+    return item;
+  }
+  // Return true if this circular buffer is full, and false otherwise.
+  bool isFull() { return tail == (head - 1) % OFFLINE_BUFFER_SIZE; }
+  bool isEmpty() { return head == tail; }
+} mBuff;
+
 double defaultLatitude(NAN), defaultLongitude(NAN);
 
 // InfluxDB client
@@ -184,10 +213,10 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   envData.clearFields();
   
   // Add InfluxDB tags
-  point.addTag("clientId", DEVICE_UUID);
-  point.addTag("device", DEVICE);
-  addSensorTag( "temperatureSensor", ppm->temp, tempSens);
-  addSensorTag( "humiditySensor", ppm->hum, humSens);
+  point.addTag( "ClientId", DEVICE_UUID);
+  point.addTag( "Device", DEVICE);
+  addSensorTag( "TemperatureSensor", ppm->temp, tempSens);
+  addSensorTag( "HumiditySensor", ppm->hum, humSens);
   addSensorTag( "PressureSensor", ppm->pres, presSens);
   addSensorTag( "CO2Sensor", ppm->co2, co2Sens);
   addSensorTag( "TVOCSensor", ppm->tvoc, tvocSens);
@@ -237,6 +266,7 @@ void loop() {
   unsigned long loopTime = millis();
  
   // Read measurements from all the sensors
+  tMeasurement* pm = mBuff.getTail();
   pm->timestamp = time(nullptr);
   readSensors( pm);
 
@@ -250,9 +280,15 @@ void loop() {
   // Write point into buffer
   unsigned long writeTime = millis();
 
-  if (!isnan(pm->temp)) //Write to InfluxDB only if we have a valid temperature
-    client.writePoint(envData);
-  else
+  if (!isnan(pm->temp)) { //Write to InfluxDB only if we have a valid temperature
+    if ( client.isBufferEmpty())  //Only if InfluxDB client buffer is flushed, write new data
+      client.writePoint(envData);
+    else {
+      if (mBuff.isFull())
+        Serial.println("Error, circular buffer full, dropping the oldest record");
+      mBuff.enqueue();            //If we already have data in InfluxDB client, save to circular buffer
+    }
+  } else
     Serial.println("Error, missing temperature, skipping write");
 
   // If no Wifi signal, try to reconnect it
@@ -260,7 +296,16 @@ void loop() {
     Serial.println("Wifi connection lost");
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
-  if (!client.flushBuffer()) {
+  if (client.flushBuffer()) {
+    //Write circular buffer if not empty
+    while (client.isBufferEmpty() && !mBuff.isEmpty()) {
+      pm = mBuff.dequeue();
+      measurementToPoint( pm, envData);
+      client.writePoint(envData);
+      client.flushBuffer();
+      Serial.println("Saved a record from circular buffer to InfluxDB");
+    }
+  } else {
     Serial.print("Error, InfluxDB flush failed: ");
     Serial.println(client.getLastErrorMessage());
     Serial.print("Full buffer: ");
