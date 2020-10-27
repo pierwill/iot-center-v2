@@ -34,9 +34,6 @@ bool bDHT = false;
 #endif
 bool bGPS = false;
 
-#define xstr(s) str(s)
-#define str(s) #s
-
 BME280I2C bme;
 bool bBME280 = false;
 bool bBMP280 = false;

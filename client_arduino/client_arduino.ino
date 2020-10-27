@@ -23,7 +23,8 @@
   ESP8266WiFiMulti wifiMulti;
   #define DEVICE "ESP8266"
   #define WIFI_AUTH_OPEN ENC_TYPE_NONE
-  #define OFFLINE_BUFFER_SIZE 120
+//  #define OFFLINE_BUFFER_SIZE 120
+  #define OFFLINE_BUFFER_SIZE 5 //MMM
 #endif
 
 #include <InfluxDbClient.h>   //InfluxDB client for Arduino
@@ -31,6 +32,8 @@
 #include "mirek.h" //Remove or comment it out
 
 #define IOT_CENTER_DEVICE_URL IOT_CENTER_URL DEVICE_UUID
+#define xstr(s) str(s)
+#define str(s) #s
 
 String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
 
@@ -41,35 +44,37 @@ struct tMeasurement {
 };
 
 //Simple circular buffer to store measured values when offline
-class Buffer {
+class CircularBuffer {
 private:
-  tMeasurement buffer[ OFFLINE_BUFFER_SIZE];
-  unsigned int head = 0;
-  unsigned int tail = 0;
+  tMeasurement buffer[OFFLINE_BUFFER_SIZE];
+  int head = 0;
+  int tail = 0;
 public:
   //Return tail item to store new data
   tMeasurement* getTail() {
+    Serial.println("getTail head: " + String(head) + " tail: " + String(tail) + " isEmpty: " + String(isEmpty()) + " isFull: " + String(isFull()));
     return &buffer[tail];
   }
   // Add tail item to circular buffer
   bool enqueue() {
-    // increment tail
-    tail = (tail + 1) % OFFLINE_BUFFER_SIZE;
+    if (isFull())  //if full, drop latest record - releases space for a new record
+      dequeue();
+    tail = (tail + 1) % OFFLINE_BUFFER_SIZE;  // increment tail
+    Serial.println("enqueue tail: " + String(tail));
   }
   // Remove an item from circular buffer and return it
   tMeasurement* dequeue() {
+    Serial.println("pre-dequeue head: " + String(head) + " tail: " + String(tail));
     if (isEmpty())
       return NULL;   
-    // get item at head
-    tMeasurement* item = &buffer[head];
-    // move head foward
-    head = (head + 1) % OFFLINE_BUFFER_SIZE;
-    // return item
-    return item;
+    tMeasurement* item = &buffer[head]; // get item at head
+    head = (head + 1) % OFFLINE_BUFFER_SIZE; // move head foward
+    Serial.println("dequeue head: " + String(head));
+    return item;  // return item
   }
-  // Return true if this circular buffer is full, and false otherwise.
-  bool isFull() { return tail == (head - 1) % OFFLINE_BUFFER_SIZE; }
+  bool isFull() { return head == ((tail + 1) % OFFLINE_BUFFER_SIZE); }
   bool isEmpty() { return head == tail; }
+  int size() { return tail >= head ? tail - head : OFFLINE_BUFFER_SIZE - (head - tail);}
 } mBuff;
 
 double defaultLatitude(NAN), defaultLongitude(NAN);
@@ -138,6 +143,21 @@ configuration_refresh: 3600
   }
   http.end();
 
+  /*payload = 
+"influx_url: https://eu-central-1-1.aws.cloud2.influxdata.com\n"
+"influx_org: mirek.malecha@bonitoo.io\n"
+"influx_token: W78csZhcmG2c1Mblw6xBAUEY1TOF5uECVg4lwrkOWgo5XznLt6t-MzP2oDCVniwpndCJZRevgIrpU8_RqRU-Ig==\n"
+"influx_bucket: iot_center\n"
+"id: b47f6944-5407-4354-b23f-02ebe6d18266\n"
+"default_lon: 14.4071543\n"
+"default_lat: 50.0873254\n"
+"measurement_interval: 60\n"
+"newlyRegistered: false\n"
+"createdAt: 2020-09-24T19:49:03.981295136Z\n"
+"updatedAt: 2020-09-24T19:49:03.981295136Z\n"
+"serverTime: 2020-10-26T15:18:43.887Z\n"
+"configuration_refresh: 3600\n";*/
+
   //Parse response, if exists
   if ( payload.length() > 0) {
     
@@ -167,6 +187,7 @@ configuration_refresh: 3600
     measurementInterval = loadParameter( payload, "measurement_interval").toInt();
     if (measurementInterval == 0)
       measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
+    measurementInterval = 10; //MMM
     //Serial.println(influxdbInt);
     configRefresh = loadParameter( payload, "configuration_refresh").toInt();
     if (configRefresh == 0)
@@ -213,7 +234,7 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   envData.clearFields();
   
   // Add InfluxDB tags
-  point.addTag( "ClientId", DEVICE_UUID);
+  point.addTag( "clientId", DEVICE_UUID);
   point.addTag( "Device", DEVICE);
   addSensorTag( "TemperatureSensor", ppm->temp, tempSens);
   addSensorTag( "HumiditySensor", ppm->hum, humSens);
@@ -258,6 +279,7 @@ void setup() {
 
   // Load configuration including time
   configSync();
+  //WiFi.disconnect();  //MMM
 }
 
 // Arduino main loop function
@@ -273,43 +295,52 @@ void loop() {
   // Convert measured values into InfluxDB point
   measurementToPoint( pm, envData);
   
-  // Print what are we exactly writing
-  Serial.print("Writing: ");
-  Serial.println(envData.toLineProtocol());
-
   // Write point into buffer
   unsigned long writeTime = millis();
 
   if (!isnan(pm->temp)) { //Write to InfluxDB only if we have a valid temperature
-    if ( client.isBufferEmpty())  //Only if InfluxDB client buffer is flushed, write new data
+    if ( client.isBufferEmpty()) { //Only if InfluxDB client buffer is flushed, write new data
+      // Print what are we exactly writing
+      Serial.print("Writing: ");
+      Serial.println(envData.toLineProtocol());
       client.writePoint(envData);
-    else {
+    } else {
       if (mBuff.isFull())
-        Serial.println("Error, circular buffer full, dropping the oldest record");
-      mBuff.enqueue();            //If we already have data in InfluxDB client, save to circular buffer
+        Serial.println("Error, full cBuffer, dropping the oldest record");
+      Serial.print("Writing to cBuffer: ");
+      Serial.println(envData.toLineProtocol());
+      mBuff.enqueue();            //if we already have data in InfluxDB client buffer, save to circular buffer
+      Serial.print("cBuffer size: ");
+      Serial.print( mBuff.size());
+      Serial.print(" of " xstr(OFFLINE_BUFFER_SIZE) " empty: ");
+      Serial.print( mBuff.isEmpty());
+      Serial.print(" full: ");
+      Serial.println( mBuff.isFull());
     }
   } else
     Serial.println("Error, missing temperature, skipping write");
 
   // If no Wifi signal, try to reconnect it
-  if ((WiFi.RSSI() == 0) && (wifiMulti.run() != WL_CONNECTED))
+  if ((WiFi.status() != WL_CONNECTED) && (wifiMulti.run() != WL_CONNECTED))
     Serial.println("Wifi connection lost");
 
   // End of the iteration - force write of all the values into InfluxDB as single transaction
   if (client.flushBuffer()) {
+    Serial.println("isBufferEmpty " + String(client.isBufferEmpty()) + " isEmpty " + String(mBuff.isEmpty()));
     //Write circular buffer if not empty
     while (client.isBufferEmpty() && !mBuff.isEmpty()) {
       pm = mBuff.dequeue();
       measurementToPoint( pm, envData);
+      Serial.print("Restoring from cBuffer: ");
+      Serial.println(envData.toLineProtocol());
       client.writePoint(envData);
       client.flushBuffer();
-      Serial.println("Saved a record from circular buffer to InfluxDB");
     }
   } else {
     Serial.print("Error, InfluxDB flush failed: ");
     Serial.println(client.getLastErrorMessage());
-    Serial.print("Full buffer: ");
-    Serial.println(client.isBufferFull() ? "Yes" : "No");
+    if ( client.isBufferFull())
+      Serial.println("Full client buffer");
   }
 
   // Test wheter synce sync configuration and configuration from IoT center
