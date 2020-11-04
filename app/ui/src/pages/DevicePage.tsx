@@ -108,7 +108,7 @@ async function writeEmulatedData(
   } = state.config
   // calculate window to emulate writes
   const toTime = Math.trunc(Date.now() / 60_000) * 60_000
-  let lastTime = state.measurements[0].maxTime
+  let lastTime = state.measurements[0]?.maxTime
     ? Math.trunc(Date.parse(state.measurements[0].maxTime) / 60_000) * 60_000
     : 0
   if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
