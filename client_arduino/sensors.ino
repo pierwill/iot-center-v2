@@ -204,7 +204,7 @@ void readSensors( tMeasurement* ppm) {
     if (gps.location.isValid()) {
       ppm->latitude = gps.location.lat();
       ppm->longitude = gps.location.lng();
-      Serial.println( String("GPS Lat: ") + latitude + "\t\tLongitude: " + longitude);
+      Serial.println( String("GPS Lat: ") + ppm->latitude + "\t\tLongitude: " + ppm->longitude);
       gpsSens = "NEO-M8N";
     } else
       Serial.println( "Waiting for GPS fix");
