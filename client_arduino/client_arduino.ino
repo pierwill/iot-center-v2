@@ -10,11 +10,11 @@
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 2
 #define WRITE_BUFFER_SIZE 2
+#if defined(ESP32)
+  #include <WiFiMulti.h>
 #define DEFAULT_CONFIG_REFRESH 3600
 #define DEFAULT_MEASUREMENT_INTERVAL 60
 
-#if defined(ESP32)
-  #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
   #define DEVICE "ESP32"
   #define OFFLINE_BUFFER_SIZE 600
@@ -235,11 +235,23 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   point.addField("Lon", ppm->longitude, 6);
 }
 
+void printHeap(){
+  Serial.print("Heap: Free: ");
+  Serial.print(ESP.getFreeHeap());
+  Serial.print(" Min: ");
+  Serial.print(ESP.getMinFreeHeap());   
+  Serial.print(" Size: ");
+  Serial.print(ESP.getHeapSize());   
+  Serial.print(" Alloc: ");
+  Serial.println(ESP.getMaxAllocHeap());   
+}
+
 // Arduino main setup fuction
 void setup() {
   //Prepare logging
   Serial.begin(115200);
   delay(500);
+  printHeap();
   
   // Initialize sensors
   setupSensors();
@@ -258,10 +270,12 @@ void setup() {
 
   // Load configuration including time
   configSync();
+  printHeap();
 }
 
 // Arduino main loop function
 void loop() {
+  printHeap();
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
  
