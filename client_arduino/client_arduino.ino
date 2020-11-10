@@ -10,11 +10,11 @@
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 2
 #define WRITE_BUFFER_SIZE 2
-#if defined(ESP32)
-  #include <WiFiMulti.h>
 #define DEFAULT_CONFIG_REFRESH 3600
 #define DEFAULT_MEASUREMENT_INTERVAL 60
 
+#if defined(ESP32)
+  #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
   #define DEVICE "ESP32"
   #define OFFLINE_BUFFER_SIZE 600
@@ -294,13 +294,13 @@ void loop() {
     if ( client.isBufferEmpty()) { //Only if InfluxDB client buffer is flushed, write new data
       // Print what are we exactly writing
       Serial.print("Writing: ");
-      Serial.println(envData.toLineProtocol());
+      Serial.println(client.pointToLineProtocol(envData));
       client.writePoint(envData);
     } else {
       if (mBuff.isFull())
         Serial.println("Error, full cBuffer, dropping the oldest record");
       Serial.print("Writing to cBuffer: ");
-      Serial.println(envData.toLineProtocol());
+      Serial.println(client.pointToLineProtocol(envData));
       mBuff.enqueue();            //if we already have data in InfluxDB client buffer, save to circular buffer
       Serial.print("cBuffer size: ");
       Serial.print( mBuff.size() + 1);  //One record is allocated for actual write
@@ -320,7 +320,7 @@ void loop() {
       pm = mBuff.dequeue();
       measurementToPoint( pm, envData);
       Serial.print("Restoring from cBuffer: ");
-      Serial.println(envData.toLineProtocol());
+      Serial.println(client.pointToLineProtocol(envData));
       client.writePoint(envData);
       client.flushBuffer();
     }
