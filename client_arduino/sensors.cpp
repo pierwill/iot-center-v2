@@ -5,11 +5,15 @@
 //Define pin number where one wire device(s) are connected, if you comment the pin, the onewire code will be excluded
 #define ONE_WIRE_PIN 4  //D2
 
+#include "cbuffer.h"
 #include <BME280I2C.h>
 #include <ClosedCube_HDC1080.h>
 #include <SparkFunCCS811.h>
 #include <SparkFun_Si7021_Breakout_Library.h>
 #include <Adafruit_BME680.h>
+
+String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
+extern double defaultLatitude, defaultLongitude;
 
 #if defined(ONE_WIRE_PIN)
   #include <OneWire.h>

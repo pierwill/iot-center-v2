@@ -17,13 +17,11 @@
   #include <WiFiMulti.h>
   WiFiMulti wifiMulti;
   #define DEVICE "ESP32"
-  #define OFFLINE_BUFFER_SIZE 600
 #elif defined(ESP8266)
   #include <ESP8266WiFiMulti.h>
   ESP8266WiFiMulti wifiMulti;
   #define DEVICE "ESP8266"
   #define WIFI_AUTH_OPEN ENC_TYPE_NONE
-  #define OFFLINE_BUFFER_SIZE 120
 #endif
 
 #include <InfluxDbClient.h>   //InfluxDB client for Arduino
@@ -34,45 +32,13 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
-String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
-
-struct tMeasurement {
-  float temp, hum, pres, co2, tvoc;
-  double latitude, longitude;
-  unsigned long long timestamp;
-};
-
 //Simple circular buffer to store measured values when offline
-class CircularBuffer {
-private:
-  tMeasurement buffer[OFFLINE_BUFFER_SIZE];
-  int head = 0;
-  int tail = 0;
-public:
-  //Return tail item to store new data
-  tMeasurement* getTail() {
-//    Serial.println("getTail head: " + String(head) + " tail: " + String(tail) + " isEmpty: " + String(isEmpty()) + " isFull: " + String(isFull()));
-    return &buffer[tail];
-  }
-  // Add tail item to circular buffer
-  bool enqueue() {
-    if (isFull())  //if full, drop latest record - releases space for a new record
-      dequeue();
-    tail = (tail + 1) % OFFLINE_BUFFER_SIZE;  // increment tail
-  }
-  // Remove an item from circular buffer and return it
-  tMeasurement* dequeue() {
-    if (isEmpty())
-      return NULL;   
-    tMeasurement* item = &buffer[head]; // get item at head
-    head = (head + 1) % OFFLINE_BUFFER_SIZE; // move head foward
-    return item;  // return item
-  }
-  bool isFull() { return head == ((tail + 1) % OFFLINE_BUFFER_SIZE); }
-  bool isEmpty() { return head == tail; }
-  int size() { return tail >= head ? tail - head : OFFLINE_BUFFER_SIZE - (head - tail);}
-} mBuff;
+#include "cbuffer.h"
+CircularBuffer mBuff;
 
+extern String tempSens, humSens, presSens, co2Sens, tvocSens, gpsSens;
+extern void setupSensors();
+extern void readSensors( tMeasurement* ppm);
 double defaultLatitude(NAN), defaultLongitude(NAN);
 
 // InfluxDB client
@@ -103,6 +69,7 @@ String IpAddress2String(const IPAddress& ipAddress) {
 }
 
 //Load configuration from IoT Center
+HTTPClient http_config;
 void configSync() {
 /*  
 Example response:
@@ -121,23 +88,21 @@ serverTime: 2020-09-15T12:19:17.319Z
 configuration_refresh: 3600
 */  
   // Load config from IoT Center
-  HTTPClient http;
-  Serial.println("Connecting " IOT_CENTER_DEVICE_URL);
-  http.begin( IOT_CENTER_DEVICE_URL);
-  http.addHeader("Accept", "text/plain");
-  int httpCode = http.GET();
   String payload;
-  // httpCode will be negative on error
+  Serial.println("Connecting " IOT_CENTER_DEVICE_URL);
+  http_config.begin( IOT_CENTER_DEVICE_URL);
+  http_config.addHeader("Accept", "text/plain");
+  int httpCode = http_config.GET();
   if (httpCode == HTTP_CODE_OK) {
-    payload = http.getString();
+    payload = http_config.getString();
     Serial.println( "--Received configuration");
     Serial.print(payload);
     Serial.println("--end");
   } else {
     Serial.print("[HTTP] GET failed, error: ");
-    Serial.println( http.errorToString(httpCode).c_str());
+    Serial.println( http_config.errorToString(httpCode).c_str());
   }
-  http.end();
+  http_config.end();
 
   //Parse response, if exists
   if ( payload.length() > 0) {
@@ -168,11 +133,13 @@ configuration_refresh: 3600
     measurementInterval = loadParameter( payload, "measurement_interval").toInt();
     if (measurementInterval == 0)
       measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
+    measurementInterval = 10; //MMM
     //Serial.println(measurementInterval);
     
     configRefresh = loadParameter( payload, "configuration_refresh").toInt();
     if (configRefresh == 0)
       configRefresh = DEFAULT_CONFIG_REFRESH;
+    configRefresh = 30; //MMM
     //Serial.println(configRefresh);
     
     //Enable messages batching and retry buffer
@@ -243,7 +210,17 @@ void printHeap(){
   Serial.print(" Size: ");
   Serial.print(ESP.getHeapSize());   
   Serial.print(" Alloc: ");
-  Serial.println(ESP.getMaxAllocHeap());   
+  Serial.println(ESP.getMaxAllocHeap());
+  
+  if (client.isBufferEmpty()) {
+    Point memData("memory");
+    memData.addField("Free", ESP.getFreeHeap());
+    memData.addField("Min", ESP.getMinFreeHeap());
+    memData.addField("Size", ESP.getHeapSize());
+    memData.addField("Alloc", ESP.getMaxAllocHeap());
+    client.writePoint(memData);
+    client.flushBuffer();
+  }
 }
 
 // Arduino main setup fuction
@@ -258,8 +235,10 @@ void setup() {
   
   // Setup wifi
   WiFi.mode(WIFI_STA);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname(DEVICE_UUID);
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-
+  
   Serial.print("Connecting to wifi");
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.print(".");
@@ -275,6 +254,7 @@ void setup() {
 
 // Arduino main loop function
 void loop() {
+  Serial.print("Loop ");
   printHeap();
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
@@ -332,9 +312,14 @@ void loop() {
   }
 
   // Test wheter synce sync configuration and configuration from IoT center
-  if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000)))
-    configSync();   
-
+  if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000))) {
+    Serial.print("Before Config ");
+    printHeap();
+    configSync();
+    Serial.print("After Config  ");
+    printHeap();
+  }
+ 
   // Calculate sleep time
   long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
 
