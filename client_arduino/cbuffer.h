@@ -1,3 +1,6 @@
+#ifndef _CBUFFER_H
+#define _CBUFFER_H
+
 #if defined(ESP32)
   #define OFFLINE_BUFFER_SIZE 600
 #elif defined(ESP8266)
@@ -31,7 +34,7 @@ public:
   // Remove an item from circular buffer and return it
   tMeasurement* dequeue() {
     if (isEmpty())
-      return nullptr;   
+      return nullptr;
     tMeasurement* item = &buffer[head]; // get item at head
     head = (head + 1) % OFFLINE_BUFFER_SIZE; // move head foward
     return item;  // return item
@@ -40,3 +43,5 @@ public:
   bool isEmpty() { return head == tail; }
   int size() { return tail >= head ? tail - head : OFFLINE_BUFFER_SIZE - (head - tail);}
 };
+
+#endif  //_CBUFFER_H

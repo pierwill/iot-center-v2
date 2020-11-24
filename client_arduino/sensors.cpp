@@ -72,7 +72,7 @@ void report_i2c() {
         Serial.print("0");
       }
       Serial.println(address,HEX);
-    }    
+    }
   }
   if (nDevices == 0) {
     Serial.println("No I2C devices found\n");
@@ -103,7 +103,7 @@ void setupSensors() {
   } else
     Serial.println("Missing AXP192");
   #endif
-  
+
   // Initialising Sensor BME680
   if (bme680.begin()) {  //I2C 0x77
     Serial.println("Found BME680 sensor");
@@ -116,7 +116,7 @@ void setupSensors() {
     bBME680 = true;
   } else
     Serial.println("Missing BME680 sensor");
-  
+
   // Initialising Sensor BMP/BME280
   if ( bme.begin()) { //I2C 0x76
     switch(bme.chipModel()) {
@@ -151,7 +151,7 @@ void setupSensors() {
     Serial.println(hdc1080.readManufacturerId(), HEX);
   }
 
-  // Initialising Sensor CSS811  
+  // Initialising Sensor CSS811
   if ( ccs811.beginWithStatus() == CCS811Core::CCS811_Stat_SUCCESS) { //I2C 0x5A or 0x5B
     Serial.println("Found CCS811 sensor");
     bCCS = true;
@@ -163,7 +163,7 @@ void setupSensors() {
   // Initialising OneWire sensors
   ow_sensors.begin(); // Start up the library
   oneWireDevices = ow_sensors.getDeviceCount();
-  if (oneWireDevices > 0) { 
+  if (oneWireDevices > 0) {
     Serial.print("Found One Wire devices: ");
     Serial.println(oneWireDevices);
   } else
@@ -175,7 +175,7 @@ void setupSensors() {
   // Initialising DHTxx sensors
   pinMode(DHT_PIN, INPUT);
   dht.begin();
-  if (!isnan(dht.readTemperature())) { 
+  if (!isnan(dht.readTemperature())) {
     Serial.println("Found DHT" xstr(DHTTYPE) " sensor");
     bDHT = true;
   } else
@@ -186,7 +186,7 @@ void setupSensors() {
 //Read all values from available sensors
 void readSensors( tMeasurement* ppm) {
   //Clear measurements and sensors
-  ppm->temp = NAN; 
+  ppm->temp = NAN;
   ppm->hum = NAN;
   ppm->pres = NAN;
   ppm->co2 = NAN;
@@ -212,7 +212,7 @@ void readSensors( tMeasurement* ppm) {
       gpsSens = "NEO-M8N";
     } else
       Serial.println( "Waiting for GPS fix");
-  }  
+  }
 #endif
 
 #if defined(ONE_WIRE_PIN)
@@ -222,7 +222,7 @@ void readSensors( tMeasurement* ppm) {
   for ( uint8_t i1 = 0; i1 < oneWireDevices; i1++) {
     float t = ow_sensors.getTempCByIndex( i1);
     if (t == -127)
-      t = NAN;   
+      t = NAN;
     Serial.println(String("OneWire Temp: ") + t + "°C");
     if (isnan(ppm->temp) || (ppm->temp < t)) { //get the highest temperature
       ppm->temp = t;
@@ -256,7 +256,7 @@ void readSensors( tMeasurement* ppm) {
       Serial.println("Failed to perform reading from BME680");
     }
   }
-  
+
   //Read the BME280/BMP280 sensor
   if ( bBME280 || bBMP280) {
     bme.read(ppm->pres, ppm->temp, ppm->hum, BME280::TempUnit_Celsius, BME280::PresUnit_hPa);
@@ -289,7 +289,7 @@ void readSensors( tMeasurement* ppm) {
     humSens = "SI7021";
     Serial.println(String("SI Temp: ") + ppm->temp + "°C\tHumidity: " + ppm->hum + "% RH");
   }
-  
+
   //Read the CCS811 sensor
   if (bCCS) {
     ccs811.setEnvironmentalData( isnan(ppm->hum) ? 60 : ppm->hum, ppm->temp);  //if humidity is not measured, set 60%

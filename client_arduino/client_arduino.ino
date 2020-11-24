@@ -1,3 +1,4 @@
+//TODO: remove heap debuging and MMM lines
 // Set device UUID - use generator e.g. https://www.uuidgenerator.net/version4
 #define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
 // Set WiFi AP SSID
@@ -60,18 +61,18 @@ String loadParameter( const String& response, const char* param) {
     Serial.println( param);
     return "";
   }
-  return response.substring( response.indexOf(":", i) + 2, response.indexOf("\n", i));  
+  return response.substring( response.indexOf(":", i) + 2, response.indexOf("\n", i));
 }
 
 //Convert IP address into String
 String IpAddress2String(const IPAddress& ipAddress) {
-  return String(ipAddress[0]) + String(".") + String(ipAddress[1]) + String(".") + String(ipAddress[2]) + String(".") + String(ipAddress[3]); 
+  return String(ipAddress[0]) + String(".") + String(ipAddress[1]) + String(".") + String(ipAddress[2]) + String(".") + String(ipAddress[3]);
 }
 
 //Load configuration from IoT Center
 HTTPClient http_config;
 void configSync() {
-/*  
+/*
 Example response:
 influx_url: http://localhost:9999
 influx_org: my-org
@@ -86,7 +87,7 @@ createdAt: 2020-09-15T12:40:12.4796108+02:00
 updatedAt: 2020-09-15T12:40:12.4796108+02:00
 serverTime: 2020-09-15T12:19:17.319Z
 configuration_refresh: 3600
-*/  
+*/
   // Load config from IoT Center
   String payload;
   Serial.println("Connecting " IOT_CENTER_DEVICE_URL);
@@ -106,7 +107,7 @@ configuration_refresh: 3600
 
   //Parse response, if exists
   if ( payload.length() > 0) {
-    
+
     //Sync time from IoT Cenetr
     String iotTime = loadParameter( payload, "serverTime");
     tm tmServer;
@@ -125,28 +126,28 @@ configuration_refresh: 3600
     String influxdbOrg = loadParameter( payload, "influx_org");
     String influxdbToken = loadParameter( payload, "influx_token");
     String influxdbBucket = loadParameter( payload, "influx_bucket");
-    
+
     // Set InfluxDB parameters
     client.setConnectionParams(influxdbURL.c_str(), influxdbOrg.c_str(), influxdbBucket.c_str(), influxdbToken.c_str(), InfluxDbCloud2CACert);
-    
+
     //Load refresh parameters
     measurementInterval = loadParameter( payload, "measurement_interval").toInt();
     if (measurementInterval == 0)
       measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
     measurementInterval = 10; //MMM
     //Serial.println(measurementInterval);
-    
+
     configRefresh = loadParameter( payload, "configuration_refresh").toInt();
     if (configRefresh == 0)
       configRefresh = DEFAULT_CONFIG_REFRESH;
     configRefresh = 30; //MMM
     //Serial.println(configRefresh);
-    
+
     //Enable messages batching and retry buffer
     WriteOptions wrOpt;
     wrOpt.writePrecision( WRITE_PRECISION).batchSize( MAX_BATCH_SIZE).bufferSize( WRITE_BUFFER_SIZE).addDefaultTag( "clientId", DEVICE_UUID).addDefaultTag( "Device", DEVICE);
     client.setWriteOptions(wrOpt);
-    
+
     HTTPOptions htOpt;
     htOpt.connectionReuse(measurementInterval <= 20);
     client.setHTTPOptions(htOpt);
@@ -163,7 +164,7 @@ configuration_refresh: 3600
     defaultLatitude = loadParameter( payload, "default_lat").toDouble();
     defaultLongitude = loadParameter( payload, "default_lon").toDouble();
   } else {
-    Serial.println("[HTTP] GET failed, emty response"); 
+    Serial.println("[HTTP] GET failed, emty response");
   }
   loadConfigTime = millis();
 }
@@ -180,7 +181,7 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   // Clear tags (except default ones) and fields
   envData.clearTags();
   envData.clearFields();
-  
+
   // Add InfluxDB tags
   addSensorTag( "TemperatureSensor", ppm->temp, tempSens);
   addSensorTag( "HumiditySensor", ppm->hum, humSens);
@@ -188,7 +189,7 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   addSensorTag( "CO2Sensor", ppm->co2, co2Sens);
   addSensorTag( "TVOCSensor", ppm->tvoc, tvocSens);
   addSensorTag( "GPSSensor", ppm->latitude, gpsSens);
-  
+
   // Report measured values. If NAN, addField will skip it
   point.setTime( ppm->timestamp);
   point.addField("Temperature", ppm->temp);
@@ -202,22 +203,30 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   point.addField("Lon", ppm->longitude, 6);
 }
 
-void printHeap(){
-  Serial.print("Heap: Free: ");
+//Only for debug puproses - detect memory leaks
+void printHeap( const char* location){
+  Serial.print(location);
+  Serial.print(" - Free: ");
+#if defined(ESP8266)  
+  Serial.println(ESP.getFreeHeap());
+#elif defined(ESP32)  
   Serial.print(ESP.getFreeHeap());
   Serial.print(" Min: ");
-  Serial.print(ESP.getMinFreeHeap());   
+  Serial.print(ESP.getMinFreeHeap());
   Serial.print(" Size: ");
-  Serial.print(ESP.getHeapSize());   
+  Serial.print(ESP.getHeapSize());
   Serial.print(" Alloc: ");
   Serial.println(ESP.getMaxAllocHeap());
-  
+#endif
   if (client.isBufferEmpty()) {
     Point memData("memory");
+    memData.addTag( "Code", location);
     memData.addField("Free", ESP.getFreeHeap());
+#if defined(ESP32)    
     memData.addField("Min", ESP.getMinFreeHeap());
     memData.addField("Size", ESP.getHeapSize());
     memData.addField("Alloc", ESP.getMaxAllocHeap());
+#endif    
     client.writePoint(memData);
     client.flushBuffer();
   }
@@ -228,17 +237,21 @@ void setup() {
   //Prepare logging
   Serial.begin(115200);
   delay(500);
-  printHeap();
-  
+  printHeap("setup init");
+
   // Initialize sensors
   setupSensors();
-  
+
   // Setup wifi
   WiFi.mode(WIFI_STA);
+#if defined(ESP32)
   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
   WiFi.setHostname(DEVICE_UUID);
+#elif defined(ESP8266)
+  WiFi.hostname(DEVICE_UUID);
+#endif
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
-  
+
   Serial.print("Connecting to wifi");
   while (wifiMulti.run() != WL_CONNECTED) {
     Serial.print(".");
@@ -249,16 +262,15 @@ void setup() {
 
   // Load configuration including time
   configSync();
-  printHeap();
+  printHeap("setup - end");
 }
 
 // Arduino main loop function
 void loop() {
-  Serial.print("Loop ");
-  printHeap();
+  printHeap("Loop");
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
- 
+
   // Read measurements from all the sensors
   tMeasurement* pm = mBuff.getTail();
   pm->timestamp = time(nullptr);
@@ -266,7 +278,7 @@ void loop() {
 
   // Convert measured values into InfluxDB point
   measurementToPoint( pm, envData);
-  
+
   // Write point into buffer
   unsigned long writeTime = millis();
 
@@ -313,27 +325,25 @@ void loop() {
 
   // Test wheter synce sync configuration and configuration from IoT center
   if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000))) {
-    Serial.print("Before Config ");
-    printHeap();
+    printHeap("Before Config");
     configSync();
-    Serial.print("After Config  ");
-    printHeap();
+    printHeap("After Config");
   }
- 
+
   // Calculate sleep time
   long delayTime = (measurementInterval * 1000) - (millis() - writeTime) - (writeTime - loopTime);
 
   if (delayTime <= 0) {
     Serial.println("Warning, too slow processing");
-    delayTime = 0; 
+    delayTime = 0;
   }
-  
+
   if (delayTime > measurementInterval * 1000) {
     Serial.println("Error, time overflow");
     delayTime = measurementInterval * 1000;
   }
-  
-  // Sleep remaining time  
+
+  // Sleep remaining time
   Serial.print("Wait: ");
   Serial.println( delayTime);
   delay(delayTime);
