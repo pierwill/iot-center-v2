@@ -65,6 +65,19 @@ yarn install
 yarn dev
 ```
 
+### Environment Installation
+
+* Install latest node.js
+* Install latest yarn
+* Download archived code in ZIP from this GIT repository
+* Extract code
+* Install local InfluxDB 2 instance or register account in InfluxDB Cloud 2 if not exists
+* Create admin token
+* Set environment variable INFLUX_TOKEN with the admin token from the previous point
+* Set environment variable INFLUX_URL (do not use localhost or 127.0.0.1 - IoT Devices need external address)
+* Set environment variable INFLUX_ORG
+* Run IoT Center
+
 ## License
 
 The project is under the [MIT License](https://opensource.org/licenses/MIT).
