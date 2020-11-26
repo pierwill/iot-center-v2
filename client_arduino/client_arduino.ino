@@ -1,4 +1,3 @@
-//TODO: remove heap debuging and MMM lines
 // Set device UUID - use generator e.g. https://www.uuidgenerator.net/version4
 #define DEVICE_UUID "00000000-0000-0000-0000-000000000000"
 // Set WiFi AP SSID
@@ -8,11 +7,13 @@
 // Set IoT Center URL - set URL where IoT Center registration API is running
 #define IOT_CENTER_URL "http://IP:5000/api/env/"
 
+//#define MEMORY_DEBUG    //Uncomment if you want to debug memory usage
 #define WRITE_PRECISION WritePrecision::S
 #define MAX_BATCH_SIZE 2
 #define WRITE_BUFFER_SIZE 2
 #define DEFAULT_CONFIG_REFRESH 3600
 #define DEFAULT_MEASUREMENT_INTERVAL 60
+#define MIN_FREE_MEMORY 15000   //memory leaks prevention
 
 #if defined(ESP32)
   #include <WiFiMulti.h>
@@ -32,6 +33,7 @@
 #define IOT_CENTER_DEVICE_URL IOT_CENTER_URL DEVICE_UUID
 #define xstr(s) str(s)
 #define str(s) #s
+
 
 //Simple circular buffer to store measured values when offline
 #include "cbuffer.h"
@@ -134,13 +136,11 @@ configuration_refresh: 3600
     measurementInterval = loadParameter( payload, "measurement_interval").toInt();
     if (measurementInterval == 0)
       measurementInterval = DEFAULT_MEASUREMENT_INTERVAL;
-    measurementInterval = 10; //MMM
     //Serial.println(measurementInterval);
 
     configRefresh = loadParameter( payload, "configuration_refresh").toInt();
     if (configRefresh == 0)
       configRefresh = DEFAULT_CONFIG_REFRESH;
-    configRefresh = 30; //MMM
     //Serial.println(configRefresh);
 
     //Enable messages batching and retry buffer
@@ -203,7 +203,8 @@ void measurementToPoint( tMeasurement* ppm, Point& point) {
   point.addField("Lon", ppm->longitude, 6);
 }
 
-//Only for debug puproses - detect memory leaks
+#if defined(MEMORY_DEBUG)
+//Only for memory debug puproses - detect memory leaks
 void printHeap( const char* location){
   Serial.print(location);
   Serial.print(" - Free: ");
@@ -231,25 +232,22 @@ void printHeap( const char* location){
     client.flushBuffer();
   }
 }
+#else
+#define printHeap(s)
+#endif
 
 // Arduino main setup fuction
 void setup() {
   //Prepare logging
   Serial.begin(115200);
   delay(500);
-  printHeap("setup init");
+  printHeap("setup start");
 
   // Initialize sensors
   setupSensors();
 
   // Setup wifi
   WiFi.mode(WIFI_STA);
-#if defined(ESP32)
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname(DEVICE_UUID);
-#elif defined(ESP8266)
-  WiFi.hostname(DEVICE_UUID);
-#endif
   wifiMulti.addAP(WIFI_SSID, WIFI_PASSWORD);
 
   Serial.print("Connecting to wifi");
@@ -262,12 +260,12 @@ void setup() {
 
   // Load configuration including time
   configSync();
-  printHeap("setup - end");
+  printHeap("setup exit");
 }
 
 // Arduino main loop function
 void loop() {
-  printHeap("Loop");
+  printHeap("loop");
   // Read actual time to calculate final delay
   unsigned long loopTime = millis();
 
@@ -325,9 +323,13 @@ void loop() {
 
   // Test wheter synce sync configuration and configuration from IoT center
   if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000))) {
-    printHeap("Before Config");
+    if (ESP.getFreeHeap() < MIN_FREE_MEMORY) {
+      printHeap("low memory");
+      ESP.restart();
+    }
+    printHeap("config start");
     configSync();
-    printHeap("After Config");
+    printHeap("config exit");
   }
 
   // Calculate sleep time
