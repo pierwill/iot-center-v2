@@ -1,6 +1,5 @@
 version: "3"
 services:
-
   influxdb_v2:
     image: quay.io/influxdb/influxdb:2.0.0-rc
     ports:
@@ -18,6 +17,6 @@ services:
     volumes:
       - $PWD/app:/app
     working_dir: /app
-    command: /app/run.sh
+    command: ./run.sh
     depends_on:
       - influxdb_v2
