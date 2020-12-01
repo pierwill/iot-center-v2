@@ -5,7 +5,10 @@ It also contains independent clients that write into InfluxDB.
 
 ## Features
 
-ToDo https://gitlab.com/bonitoo-io/influxdata/-/blob/master/iot-center/TechnicalSkeleton.MD
+ToDo
+* simple device management, automatic registration of devices in InfluxDB
+* arduino, pyton, javasript clients
+* various data visualizations, dashboards
 
 ## Quick Start
 
