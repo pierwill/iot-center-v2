@@ -81,8 +81,12 @@ const fetchLastEntryTime = async (deviceId: string): Promise<LastEntryTime> => {
     |> max(column: "_time")
     `
   )
-  const [lastEntry] = result?.getColumn('_time') as number[]
-  return {lastEntry, deviceId}
+  const lastColumn = result.getColumn('_time')
+  if (lastColumn !== null) {
+    const [lastEntry] = lastColumn as number[]
+    return {lastEntry, deviceId}
+  }
+  return {deviceId}
 }
 
 const NO_ENTRIES: Array<LastEntryTime> = []
