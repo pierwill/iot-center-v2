@@ -76,7 +76,7 @@ HTTPClient http_config;
 void configSync() {
 /*
 Example response:
-influx_url: http://localhost:9999
+influx_url: http://localhost:8086
 influx_org: my-org
 influx_token: x0102CguGaU7qoJWftHUTV5wk5J-s6pZ_4WAIQjAmqU9zEXESKh4Am1p8URyNx9nfeU9TuGMtFUH85crAHO1IQ==
 influx_bucket: iot_center
