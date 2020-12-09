@@ -115,6 +115,106 @@ const fetchDeviceDataFieldLast = async (
   return result
 }
 
+type TMeasurementDefinition = {
+  title: string
+  column: string
+  gauge: Partial<GaugeLayerConfig>
+  line?: Partial<LineLayerConfig>
+}
+const measurementsDefinitions: TMeasurementDefinition[] = [
+  {
+    title: 'Temperature',
+    column: 'Temperature',
+    gauge: {
+      suffix: ' °C',
+      tickSuffix: ' °C',
+      gaugeColors: [
+        {id: 'min', name: 'min', value: 0, hex: '#00aaff', type: 'min'},
+        {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
+      ],
+    },
+  },
+  {
+    title: 'Humidity',
+    column: 'Humidity',
+    gauge: {
+      suffix: ' %',
+      tickSuffix: ' %',
+      gaugeColors: [
+        {id: 'min', name: 'min', value: 0, hex: '#ff6666', type: 'min'},
+        {
+          id: 'low-warn',
+          name: 'low-warn',
+          value: 30,
+          hex: '#e8e800',
+          type: 'threshold',
+        },
+        {
+          id: 'ideal',
+          name: 'ideal',
+          value: 40,
+          hex: '#00dd00',
+          type: 'threshold',
+        },
+        {
+          id: 'high-warn',
+          name: 'high-warn',
+          value: 60,
+          hex: '#e8e800',
+          type: 'threshold',
+        },
+        {
+          id: 'high-warn',
+          name: 'high-warn',
+          value: 70,
+          hex: '#ff6666',
+          type: 'threshold',
+        },
+        {id: 'max', name: 'max', value: 100, hex: '', type: 'max'},
+      ],
+    },
+  },
+  {
+    title: 'Pressure',
+    column: 'Pressure',
+    gauge: {
+      suffix: ' hPa',
+      tickSuffix: ' hPa',
+      decimalPlaces: {digits: 0, isEnforced: true},
+      gaugeColors: [
+        {id: 'min', name: 'min', value: 970, hex: '#00ffff', type: 'min'},
+        {id: 'max', name: 'max', value: 1_050, hex: '#ff6666', type: 'max'},
+      ],
+    },
+  },
+  {
+    title: 'CO2',
+    column: 'CO2',
+    gauge: {
+      suffix: ' ppm',
+      tickSuffix: ' ppm',
+      decimalPlaces: {digits: 0, isEnforced: true},
+      gaugeColors: [
+        {id: 'min', name: 'min', value: 400, hex: '#00aaff', type: 'min'},
+        {id: 'max', name: 'max', value: 3000, hex: '#ff6666', type: 'max'},
+      ],
+    },
+  },
+  {
+    title: 'TVOC',
+    column: 'TVOC',
+    gauge: {
+      suffix: ' ppm',
+      tickSuffix: ' ppm',
+      decimalPlaces: {digits: 0, isEnforced: true},
+      gaugeColors: [
+        {id: 'min', name: 'min', value: 250, hex: '#00aaff', type: 'min'},
+        {id: 'max', name: 'max', value: 2000, hex: '#ff6666', type: 'max'},
+      ],
+    },
+  },
+]
+
 interface PropsRoute {
   deviceId?: string
 }
@@ -186,6 +286,7 @@ const DashboardPage: FunctionComponent<
 
   useEffect(() => {
     resetXDomain()
+    // eslint-disable-next-line
   }, [deviceData])
 
   useEffect(() => {
@@ -209,106 +310,6 @@ const DashboardPage: FunctionComponent<
 
     fetchDevices()
   }, [])
-
-  type TMeasurementDefinition = {
-    title: string
-    column: string
-    gauge: Partial<GaugeLayerConfig>
-    line?: Partial<LineLayerConfig>
-  }
-  const measurementsDefinitions: TMeasurementDefinition[] = [
-    {
-      title: 'Temperature',
-      column: 'Temperature',
-      gauge: {
-        suffix: ' °C',
-        tickSuffix: ' °C',
-        gaugeColors: [
-          {id: 'min', name: 'min', value: 0, hex: '#00aaff', type: 'min'},
-          {id: 'max', name: 'max', value: 40, hex: '#ff6666', type: 'max'},
-        ],
-      },
-    },
-    {
-      title: 'Humidity',
-      column: 'Humidity',
-      gauge: {
-        suffix: ' %',
-        tickSuffix: ' %',
-        gaugeColors: [
-          {id: 'min', name: 'min', value: 0, hex: '#ff6666', type: 'min'},
-          {
-            id: 'low-warn',
-            name: 'low-warn',
-            value: 30,
-            hex: '#e8e800',
-            type: 'threshold',
-          },
-          {
-            id: 'ideal',
-            name: 'ideal',
-            value: 40,
-            hex: '#00dd00',
-            type: 'threshold',
-          },
-          {
-            id: 'high-warn',
-            name: 'high-warn',
-            value: 60,
-            hex: '#e8e800',
-            type: 'threshold',
-          },
-          {
-            id: 'high-warn',
-            name: 'high-warn',
-            value: 70,
-            hex: '#ff6666',
-            type: 'threshold',
-          },
-          {id: 'max', name: 'max', value: 100, hex: '', type: 'max'},
-        ],
-      },
-    },
-    {
-      title: 'Pressure',
-      column: 'Pressure',
-      gauge: {
-        suffix: ' hPa',
-        tickSuffix: ' hPa',
-        decimalPlaces: {digits: 0, isEnforced: true},
-        gaugeColors: [
-          {id: 'min', name: 'min', value: 970, hex: '#00ffff', type: 'min'},
-          {id: 'max', name: 'max', value: 1_050, hex: '#ff6666', type: 'max'},
-        ],
-      },
-    },
-    {
-      title: 'CO2',
-      column: 'CO2',
-      gauge: {
-        suffix: ' ppm',
-        tickSuffix: ' ppm',
-        decimalPlaces: {digits: 0, isEnforced: true},
-        gaugeColors: [
-          {id: 'min', name: 'min', value: 400, hex: '#00aaff', type: 'min'},
-          {id: 'max', name: 'max', value: 3000, hex: '#ff6666', type: 'max'},
-        ],
-      },
-    },
-    {
-      title: 'TVOC',
-      column: 'TVOC',
-      gauge: {
-        suffix: ' ppm',
-        tickSuffix: ' ppm',
-        decimalPlaces: {digits: 0, isEnforced: true},
-        gaugeColors: [
-          {id: 'min', name: 'min', value: 250, hex: '#00aaff', type: 'min'},
-          {id: 'max', name: 'max', value: 2000, hex: '#ff6666', type: 'max'},
-        ],
-      },
-    },
-  ]
 
   const renderGauge = (
     gaugeDefinition: Partial<GaugeLayerConfig>,
@@ -360,7 +361,7 @@ const DashboardPage: FunctionComponent<
 
           if (!lastValueTable?.length) {
             gaugeMissingValues.push(title)
-            return
+            return undefined
           }
 
           const [time] = lastValueTable.getColumn('_time') as number[]
