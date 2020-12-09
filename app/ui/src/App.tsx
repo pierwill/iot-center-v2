@@ -9,7 +9,7 @@ import {
   matchPath,
   RouteProps,
 } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
+import Markdown from './util/Markdown'
 import './App.css'
 import {Layout, Menu} from 'antd'
 import {
@@ -174,9 +174,7 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             breakpoint="sm"
           >
             <div style={{paddingLeft: 10, paddingRight: 10}}>
-              <ReactMarkdown
-                source={helpText && !helpCollapsed ? helpText : ''}
-              />
+              <Markdown source={helpText && !helpCollapsed ? helpText : ''} />
             </div>
           </Sider>
         ) : undefined}
