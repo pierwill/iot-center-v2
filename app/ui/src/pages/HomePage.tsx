@@ -1,5 +1,5 @@
 import React, {FunctionComponent, useEffect, useState} from 'react'
-import ReactMarkdown from 'react-markdown'
+import Markdown from '../util/Markdown'
 import PageContent from './PageContent'
 
 const Home: FunctionComponent = () => {
@@ -20,7 +20,7 @@ const Home: FunctionComponent = () => {
 
   return (
     <PageContent title="Welcome to IoT Center V2">
-      {helpText ? <ReactMarkdown source={helpText} /> : undefined}
+      {helpText ? <Markdown source={helpText} /> : undefined}
     </PageContent>
   )
 }
