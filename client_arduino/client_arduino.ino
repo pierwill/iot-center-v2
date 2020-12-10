@@ -75,10 +75,15 @@ String IpAddress2String(const IPAddress& ipAddress) {
 HTTPClient http_config;
 void configSync() {
 /*
+<<<<<<< HEAD
+Response example:
+influx_url: http://localhost:9999
+=======
 Example response:
 influx_url: http://localhost:8086
+>>>>>>> 931a1fce76be327cd840b1cbf887b6fba488d9d6
 influx_org: my-org
-influx_token: x0102CguGaU7qoJWftHUTV5wk5J-s6pZ_4WAIQjAmqU9zEXESKh4Am1p8URyNx9nfeU9TuGMtFUH85crAHO1IQ==
+influx_token: x0102CguGaU7qoJWftHUTV5wk5J-s6pZ_4WAIQjAmqU91EXxSKh4Am1p8URyNx9nfeU9TuGMtFUH85crAHO1Is==
 influx_bucket: iot_center
 id: 857b4466-2bbb-48e5-9f51-d3eef385e4a8
 default_lon: 14.4071543
@@ -323,7 +328,7 @@ void loop() {
 
   // Test wheter synce sync configuration and configuration from IoT center
   if ((loadConfigTime > millis()) || ( millis() >= loadConfigTime + (configRefresh * 1000))) {
-    if (ESP.getFreeHeap() < MIN_FREE_MEMORY) {
+    if (ESP.getFreeHeap() < MIN_FREE_MEMORY) {    //if low memory, restart
       printHeap("low memory");
       ESP.restart();
     }
