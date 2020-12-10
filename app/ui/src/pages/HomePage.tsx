@@ -19,7 +19,7 @@ const Home: FunctionComponent = () => {
   }, [])
 
   return (
-    <PageContent title="Welcome to IoT Center V2">
+    <PageContent title="">
       {helpText ? <Markdown source={helpText} /> : undefined}
     </PageContent>
   )
