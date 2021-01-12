@@ -5,15 +5,13 @@ const proxy = require('express-http-proxy')
 const apis = require('./apis')
 const onboardInfluxDB = require('./influxdb/onboarding')
 const {logEnvironment, INFLUX_URL} = require('./env')
+const monitor = require('./monitor')
 
 async function startApplication() {
   const app = express()
 
-  // log request URLs
-  app.use((req, _resp, next) => {
-    console.info(`${req.method} ${req.path}`)
-    next()
-  })
+  // monitor application
+  monitor(app)
 
   // APIs
   app.use('/api', apis)
