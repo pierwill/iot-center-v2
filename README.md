@@ -5,7 +5,6 @@ It also contains independent clients that write into InfluxDB.
 
 ## Features
 
-ToDo
 * simple device management, automatic registration of devices in InfluxDB
 * arduino, pyton, javasript clients
 * various data visualizations, dashboards
@@ -72,8 +71,7 @@ yarn dev
 
 * Install latest node.js
 * Install latest yarn
-* Download archived code in ZIP from this GIT repository
-* Extract code
+* Download this GIT repository
 * Install local InfluxDB 2 instance or register account in InfluxDB Cloud 2 if not exists
 * Create admin token
 * Set environment variable INFLUX_TOKEN with the admin token from the previous point
