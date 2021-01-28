@@ -338,15 +338,15 @@ const DashboardPage: FunctionComponent<
     )
   }
 
-  const renderGaugeTime = (time: number) => {
+  const GaugeTime = ({time}: {time: number}) => {
     const now = Date.now()
     const diff = now - time
 
-    if (diff < 10_000) return <div style={{color: 'green'}}>just now</div>
-    if (diff < 60_000)
-      return <div style={{color: 'green'}}>less than minute ago</div>
-    if (diff < 600_000)
-      return <div style={{color: '#ffbb77'}}>more than minute ago</div>
+    if (diff < 60_000) return <div style={{color: 'green'}}>just now</div>
+    if (diff < 300_000)
+      return <div style={{color: 'green'}}>less than 5 min ago</div>
+    if (diff < 900_000)
+      return <div style={{color: '#ffbb77'}}>more than 5 min ago</div>
     return <div style={{color: 'red'}}>long time ago</div>
   }
 
@@ -376,7 +376,7 @@ const DashboardPage: FunctionComponent<
                 title={title}
                 extra={
                   <Tooltip title={new Date(time).toISOString()}>
-                    {renderGaugeTime(time)}
+                    <GaugeTime {...{time}} />
                   </Tooltip>
                 }
               >
