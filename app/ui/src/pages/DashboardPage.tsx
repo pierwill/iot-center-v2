@@ -483,7 +483,7 @@ const DashboardPage: FunctionComponent<
           showArrow={true}
           filterOption={true}
           onChange={(key) => history.push(`/dashboard/${key}`)}
-          style={{minWidth: 200}}
+          style={{minWidth: 200, width: 350}}
           loading={!devices}
           disabled={!devices}
         >
@@ -533,16 +533,14 @@ const DashboardPage: FunctionComponent<
   return (
     <PageContent
       title={
-        isVirtualDevice ? (
-          <>
-            {'Virtual Device'}
+        <>
+          Dashboard
+          {isVirtualDevice ? (
             <Tooltip title="This page writes temperature measurements for the last 30 days from an emulated device, the temperature is reported every minute.">
               <InfoCircleFilled style={{fontSize: '1em', marginLeft: 5}} />
             </Tooltip>
-          </>
-        ) : (
-          `Device ${deviceId}`
-        )
+          ) : undefined}
+        </>
       }
       titleExtra={pageControls}
       message={message}
