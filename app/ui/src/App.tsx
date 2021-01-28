@@ -110,7 +110,12 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
           </Header> */}
           <Menu
             theme="dark"
-            selectedKeys={[props.location.pathname]}
+            selectedKeys={[
+              props.location.pathname,
+              ...(matchPath(props.location.pathname, '/dashboard/:device')
+                ? ['/dashboard/:device']
+                : []),
+            ]}
             mode="inline"
           >
             <Menu.Item key="/home" icon={<HomeOutlined />}>
@@ -125,7 +130,7 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             >
               <NavLink to="/devices/virtual_device">Virtual Device</NavLink>
             </Menu.Item>
-            <Menu.Item key="/dashboard" icon={<AreaChartOutlined />}>
+            <Menu.Item key="/dashboard/:device" icon={<AreaChartOutlined />}>
               <NavLink to="/dashboard">Dashboard</NavLink>
             </Menu.Item>
             {}
