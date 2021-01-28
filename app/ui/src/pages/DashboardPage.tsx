@@ -403,7 +403,7 @@ const DashboardPage: FunctionComponent<
       type: 'line',
       x: '_time',
       y: column,
-      interpolation: 'natural',
+      interpolation: 'linear',
     }
 
     return (
