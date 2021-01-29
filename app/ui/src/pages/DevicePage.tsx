@@ -42,6 +42,7 @@ interface measurementSummaryRow {
   maxValue: number
   maxTime: string
   count: string
+  sensor: string
 }
 interface DeviceData {
   config: DeviceConfig
@@ -75,7 +76,12 @@ async function fetchDeviceData(config: DeviceConfig): Promise<DeviceData> {
   } = config
   const influxDB = new InfluxDB({url: '/influx', token})
   const queryApi = influxDB.getQueryApi(org)
-  const measurements = await queryApi.collectRows<any>(flux`
+  // query data from influxdb
+  const [measurements, sensors]: [
+    measurementSummaryRow[],
+    {[key: string]: string}[]
+  ] = await Promise.all([
+    queryApi.collectRows<any>(flux`
   import "math"
 from(bucket: ${bucket})
   |> range(start: -30d)
@@ -91,7 +97,23 @@ from(bucket: ${bucket})
         count: accumulator.count + 1.0
       }),
       identity: {maxTime: 1970-01-01, count: 0.0, minValue: math.mInf(sign: 1), maxValue: math.mInf(sign: -1)}
-  )`)
+  )`),
+    queryApi.collectRows<any>(flux`
+from(bucket: ${bucket})
+  |> range(start: -30d)
+  |> filter(fn: (r) => r._measurement == "environment")
+  |> filter(fn: (r) => r.clientId == ${id})
+  |> keep(columns: ["TemperatureSensor", "HumiditySensor", "PressureSensor", "CO2Sensor", "TVOCSensor", "GPSSensor", "_time"])
+  |> map(fn: (r) => ({r with _value: 0}))
+  |> last()
+    `),
+  ])
+  measurements.forEach((x) => {
+    const {_field} = x
+    const senosorTagName =
+      (_field === 'Lat' || _field == 'Lon' ? 'GPS' : _field) + 'Sensor'
+    x.sensor = sensors?.[0]?.[senosorTagName] ?? ''
+  })
   return {config, measurements}
 }
 
@@ -137,6 +159,12 @@ async function writeEmulatedData(
           .intField('TVOC', generateTVOC(lastTime))
           .floatField('Lat', state.config.default_lat || 50.0873254)
           .floatField('Lon', state.config.default_lon || 14.4071543)
+          .tag('TemperatureSensor', 'virtual_TemperatureSensor')
+          .tag('HumiditySensor', 'virtual_HumiditySensor')
+          .tag('PressureSensor', 'virtual_PressureSensor')
+          .tag('CO2Sensor', 'virtual_CO2Sensor')
+          .tag('TVOCSensor', 'virtual_TVOCSensor')
+          .tag('GPSSensor', 'virtual_GPSSensor')
           .timestamp(lastTime)
         writeApi.writePoint(point)
 
@@ -312,6 +340,10 @@ const DevicePage: FunctionComponent<
       title: 'entry count',
       dataIndex: 'count',
       align: 'right',
+    },
+    {
+      title: 'sensor',
+      dataIndex: 'sensor',
     },
   ]
 
