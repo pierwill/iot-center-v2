@@ -111,6 +111,16 @@ router.delete(
   })
 )
 
+router.get(
+  '/gpxVirtual',
+  handleError(async (_req, res) => {
+    require('fs').readFile('./apis/gpxData.json', (_err, data) => {
+      res.setHeader('Content-Type', 'application/json')
+      res.send(data.toString('utf-8'))
+    })
+  })
+)
+
 // all other routes are not supported!
 router.all('*', (_, res) => {
   res.status(404)

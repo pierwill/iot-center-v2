@@ -1,4 +1,5 @@
 const DAY_MILLIS = 24 * 60 * 60 * 1000
+const MONTH_MILLIS = 30 * 24 * 60 * 60 * 1000
 
 /**
  * Generates measurement values for a specific time.
@@ -27,6 +28,20 @@ function generateValue(
     Math.trunc((min + dif / 2 + periodValue + dayValue + Math.random()) * 10) /
     10
   )
+}
+
+export const fetchGPXData = async (): Promise<[number, number][]> =>
+  await (await fetch('/api/gpxVirtual')).json()
+
+export const generateGPXData = (
+  data: [number, number][],
+  time: number
+): [number, number] => {
+  const len = data.length
+  const index = Math.floor(((time % MONTH_MILLIS) / MONTH_MILLIS) * len) % len
+  const entry = data[index]
+
+  return entry
 }
 
 export const generateTemperature = generateValue.bind(undefined, 30, 0, 40)

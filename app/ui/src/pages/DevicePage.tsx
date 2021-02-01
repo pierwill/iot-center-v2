@@ -17,6 +17,8 @@ import {
   generatePressure,
   generateCO2,
   generateTVOC,
+  fetchGPXData,
+  generateGPXData,
 } from '../util/generateValue'
 import {
   AreaChartOutlined,
@@ -136,6 +138,7 @@ async function writeEmulatedData(
   if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
     lastTime = toTime - 30 * 24 * 60 * 60 * 1000
   }
+  const getGPX = generateGPXData.bind(undefined, await fetchGPXData())
   const totalPoints = Math.trunc((toTime - lastTime) / 60_000)
   let pointsWritten = 0
   if (totalPoints > 0) {
@@ -151,14 +154,15 @@ async function writeEmulatedData(
       onProgress(0, 0, totalPoints)
       while (lastTime < toTime) {
         lastTime += 60_000 // emulate next minute
+        const gpx = getGPX(lastTime)
         point
           .floatField('Temperature', generateTemperature(lastTime))
           .floatField('Humidity', generateHumidity(lastTime))
           .floatField('Pressure', generatePressure(lastTime))
           .intField('CO2', generateCO2(lastTime))
           .intField('TVOC', generateTVOC(lastTime))
-          .floatField('Lat', state.config.default_lat || 50.0873254)
-          .floatField('Lon', state.config.default_lon || 14.4071543)
+          .floatField('Lat', gpx[0] || state.config.default_lat || 50.0873254)
+          .floatField('Lon', gpx[1] || state.config.default_lon || 14.4071543)
           .tag('TemperatureSensor', 'virtual_TemperatureSensor')
           .tag('HumiditySensor', 'virtual_HumiditySensor')
           .tag('PressureSensor', 'virtual_PressureSensor')
