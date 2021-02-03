@@ -1,3 +1,3 @@
-## This is Device Page
+## Device page
 
-[Source Code in DevicePage.tsx](https://github.com/bonitoo-io/iot-center-v2/blob/master/app/ui/src/pages/DevicePage.tsx)
+[_Source code for this page on GitHub_](https://github.com/bonitoo-io/iot-center-v2/blob/master/app/ui/src/pages/DevicePage.tsx)
