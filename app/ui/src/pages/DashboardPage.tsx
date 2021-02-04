@@ -235,10 +235,6 @@ const DashboardPage: FunctionComponent<
   const [timeStart, setTimeStart] = useState('-1d')
   const [xDomain, setXDomain] = useState<number[] | undefined>(undefined)
 
-  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
-    return helpCollapsed ? collapsed : expanded
-  }
-
   const resetXDomain = () =>
     setXDomain(getXDomainFromTable(deviceData?.measurementsTable))
 
@@ -368,9 +364,9 @@ const DashboardPage: FunctionComponent<
 
           return (
             <Col
-              sm={helpLayout(24, 24)}
-              md={helpLayout(12, 24)}
-              xl={helpLayout(6, 12)}
+              sm={helpCollapsed ? 24 : 24}
+              md={helpCollapsed ? 12 : 24}
+              xl={helpCollapsed ? 6 : 12}
             >
               <Card
                 title={title}

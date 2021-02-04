@@ -102,10 +102,6 @@ const DevicesPage: FunctionComponent<Props> = ({helpCollapsed}) => {
   const [dataStamp, setDataStamp] = useState(0)
   const [lastEntries, setLastEntries] = useState(NO_ENTRIES)
 
-  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
-    return helpCollapsed ? collapsed : expanded
-  }
-
   useEffect(() => {
     setLoading(true)
     const fetchDevices = async () => {
@@ -203,7 +199,7 @@ const DevicesPage: FunctionComponent<Props> = ({helpCollapsed}) => {
     {
       title: 'Registration Time',
       dataIndex: 'createdAt',
-      responsive: helpLayout(['lg'], ['xxl']),
+      responsive: helpCollapsed ? ['lg'] : ['xxl'],
     },
     {
       title: 'Last Entry',
@@ -217,7 +213,7 @@ const DevicesPage: FunctionComponent<Props> = ({helpCollapsed}) => {
             format: 'YYYY-MM-DD HH:mm:ss ZZ',
           })(lastEntry)
       },
-      responsive: helpLayout(['xl'], []),
+      responsive: helpCollapsed ? ['xl'] : [],
     },
     {
       title: '',

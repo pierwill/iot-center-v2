@@ -215,10 +215,6 @@ const DevicePage: FunctionComponent<
 
   const isVirtualDevice = deviceId === VIRTUAL_DEVICE
 
-  const helpLayout = <T,>(collapsed: T, expanded: T): T => {
-    return helpCollapsed ? collapsed : expanded
-  }
-
   // fetch device configuration and data
   useEffect(() => {
     const fetchData = async () => {
@@ -379,10 +375,9 @@ const DevicePage: FunctionComponent<
       <Descriptions
         title="Device Configuration"
         bordered
-        column={helpLayout(
-          {xxl: 3, xl: 2, md: 1, sm: 1},
-          {xxl: 2, md: 1, sm: 1}
-        )}
+        column={
+          helpCollapsed ? {xxl: 3, xl: 2, md: 1, sm: 1} : {xxl: 2, md: 1, sm: 1}
+        }
       >
         <Descriptions.Item label="Device ID">
           {deviceData?.config.id}
