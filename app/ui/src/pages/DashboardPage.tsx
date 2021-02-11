@@ -347,7 +347,7 @@ const DashboardPage: FunctionComponent<
   }
 
   const gaugeMissingValues: string[] = []
-  const gauges = deviceData?.measurementsLastValues?.length && (
+  const gauges = deviceData?.measurementsLastValues?.length ? (
     <>
       <Row gutter={[4, 8]}>
         {measurementsDefinitions.map(({gauge, title, column}) => {
@@ -388,7 +388,7 @@ const DashboardPage: FunctionComponent<
           : undefined}
       </Divider>
     </>
-  )
+  ) : undefined
 
   const renderPlot = (
     lineDefinition: Partial<LineLayerConfig> | undefined,
@@ -423,40 +423,42 @@ const DashboardPage: FunctionComponent<
     )
   }
 
-  const plots =
-    deviceData?.measurementsTable?.length &&
-    (() => {
-      const table = deviceData.measurementsTable as GiraffeTable
-      const measurementsWithValues = measurementsDefinitions.filter(
-        ({column}) => table.getColumn(column)
-      )
-      const measurementsNoValues = measurementsDefinitions.filter(
-        ({column}) => !table.getColumn(column)
-      )
+  const plots = deviceData?.measurementsTable?.length
+    ? (() => {
+        const table = deviceData.measurementsTable as GiraffeTable
+        const measurementsWithValues = measurementsDefinitions.filter(
+          ({column}) => table.getColumn(column)
+        )
+        const measurementsNoValues = measurementsDefinitions.filter(
+          ({column}) => !table.getColumn(column)
+        )
 
-      return (
-        <>
-          <Collapse defaultActiveKey={measurementsWithValues.map((_, i) => i)}>
-            {measurementsWithValues.map(({line, title, column}, i) => (
-              <CollapsePanel key={i} header={title}>
-                {renderPlot(line, table, column)}
-              </CollapsePanel>
-            ))}
-          </Collapse>
-          {measurementsNoValues.length ? (
-            <Collapse>
-              {measurementsNoValues.map(({title}, i) => (
-                <CollapsePanel
-                  key={i}
-                  disabled={true}
-                  header={`${title} - No data`}
-                />
+        return (
+          <>
+            <Collapse
+              defaultActiveKey={measurementsWithValues.map((_, i) => i)}
+            >
+              {measurementsWithValues.map(({line, title, column}, i) => (
+                <CollapsePanel key={i} header={title}>
+                  {renderPlot(line, table, column)}
+                </CollapsePanel>
               ))}
             </Collapse>
-          ) : undefined}
-        </>
-      )
-    })()
+            {measurementsNoValues.length ? (
+              <Collapse>
+                {measurementsNoValues.map(({title}, i) => (
+                  <CollapsePanel
+                    key={i}
+                    disabled={true}
+                    header={`${title} - No data`}
+                  />
+                ))}
+              </Collapse>
+            ) : undefined}
+          </>
+        )
+      })()
+    : undefined
 
   const timeOptions: {label: string; value: string}[] = [
     {label: 'Past 5m', value: '-5m'},
