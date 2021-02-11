@@ -89,6 +89,7 @@ from(bucket: ${bucket})
   |> range(start: -30d)
   |> filter(fn: (r) => r._measurement == "environment")
   |> filter(fn: (r) => r.clientId == ${id})
+  |> filter(fn: (r) => r._field != "s2_cell_id")
   |> toFloat()
   |> group(columns: ["_field"])
   |> reduce(
