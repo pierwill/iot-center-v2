@@ -281,10 +281,7 @@ const DevicePage: FunctionComponent<
   const pageControls = (
     <>
       {writeAllowed ? (
-        <Tooltip
-          title="Write Missing Data for the last 7 days"
-          placement="top"
-        >
+        <Tooltip title="Write Missing Data for the last 7 days" placement="top">
           <Button
             onClick={writeData}
             disabled={writeButtonDisabled}
