@@ -175,7 +175,7 @@ const App: FunctionComponent<RouteComponentProps> = (props) => {
             onCollapse={() => setHelpCollapsed(!helpCollapsed)}
             collapsedWidth={30}
             theme="light"
-            width={'40vw'}
+            width={'20vw'}
             breakpoint="sm"
           >
             <div style={{paddingLeft: 10, paddingRight: 10}}>
