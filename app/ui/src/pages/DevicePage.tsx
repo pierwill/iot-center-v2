@@ -136,8 +136,8 @@ async function writeEmulatedData(
   let lastTime = state.measurements[0]?.maxTime
     ? Math.trunc(Date.parse(state.measurements[0].maxTime) / 60_000) * 60_000
     : 0
-  if (lastTime < toTime - 30 * 24 * 60 * 60 * 1000) {
-    lastTime = toTime - 30 * 24 * 60 * 60 * 1000
+  if (lastTime < toTime - 7 * 24 * 60 * 60 * 1000) {
+    lastTime = toTime - 7 * 24 * 60 * 60 * 1000
   }
   const getGPX = generateGPXData.bind(undefined, await fetchGPXData())
   const totalPoints = Math.trunc((toTime - lastTime) / 60_000)
@@ -282,7 +282,7 @@ const DevicePage: FunctionComponent<
     <>
       {writeAllowed ? (
         <Tooltip
-          title="Write Missing Data for the last 30 days"
+          title="Write Missing Data for the last 7 days"
           placement="top"
         >
           <Button
@@ -354,7 +354,7 @@ const DevicePage: FunctionComponent<
         isVirtualDevice ? (
           <>
             {'Virtual Device'}
-            <Tooltip title="This page writes temperature measurements for the last 30 days from an emulated device, the temperature is reported every minute.">
+            <Tooltip title="This page writes temperature measurements for the last 7 days from an emulated device, the temperature is reported every minute.">
               <InfoCircleFilled style={{fontSize: '1em', marginLeft: 5}} />
             </Tooltip>
           </>

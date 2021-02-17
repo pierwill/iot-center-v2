@@ -534,7 +534,7 @@ const DashboardPage: FunctionComponent<
         <>
           Dashboard
           {isVirtualDevice ? (
-            <Tooltip title="This page writes temperature measurements for the last 30 days from an emulated device, the temperature is reported every minute.">
+            <Tooltip title="This page writes temperature measurements for the last 7 days from an emulated device, the temperature is reported every minute.">
               <InfoCircleFilled style={{fontSize: '1em', marginLeft: 5}} />
             </Tooltip>
           ) : undefined}
