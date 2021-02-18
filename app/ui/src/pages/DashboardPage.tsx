@@ -81,6 +81,7 @@ const fetchDeviceMeasurements = async (
   from(bucket: ${bucket})
     |> range(start: ${fluxDuration(timeStart)})
     |> filter(fn: (r) => r._measurement == "environment")
+    |> filter(fn: (r) => r["_field"] == "Temperature" or r["_field"] == "TVOC" or r["_field"] == "Pressure" or r["_field"] == "Humidity" or r["_field"] == "CO2")
     |> filter(fn: (r) => r.clientId == ${id})
     |> v1.fieldsAsCols()`
   )
