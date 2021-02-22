@@ -35,7 +35,7 @@ function writeProcessUsage() {
 }
 // write process usage now and then every 10 seconds
 writeProcessUsage()
-const nodeUsageTimer = setInterval(writeProcessUsage, 10_000).unref()
+const nodeUsageTimer = setInterval(writeProcessUsage, 10000).unref()
 
 // on shutdown
 // - clear reporting of node usage
